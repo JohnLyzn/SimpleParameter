@@ -1,5 +1,7 @@
 package com.fy.sparam.core;
 
+import java.util.Collection;
+
 /**
  * 关联关系连接器
  * 
@@ -91,8 +93,6 @@ public final class JoinWorker<PT extends AbsParameter<PT, SCT, RT>, SCT, RT> {
 	ParameterField<PT, SCT, RT> mappedFromField;
 	PT mappedParam;
 	PT mappedFromParam;
-
-	SearchContext<PT, SCT, RT> usingSearchContext;
 	
 	/**
 	 * 
@@ -107,7 +107,7 @@ public final class JoinWorker<PT extends AbsParameter<PT, SCT, RT>, SCT, RT> {
 	 * @author linjie
 	 * @since 1.0.1
 	 */
-	static <PT extends AbsParameter<PT, SCT, RT>, SCT, RT> JoinWorker<PT, SCT, RT> build(PT fromParam, PT toParam,
+	final static <PT extends AbsParameter<PT, SCT, RT>, SCT, RT> JoinWorker<PT, SCT, RT> build(PT fromParam, PT toParam,
 			JoinType joinType, RelationType relationType,
 			ParameterField<PT, SCT, RT> fromField, ParameterField<PT, SCT, RT> toField) {
 		JoinWorker<PT, SCT, RT> joinWorker = new JoinWorker<PT, SCT, RT>();
@@ -127,10 +127,17 @@ public final class JoinWorker<PT extends AbsParameter<PT, SCT, RT>, SCT, RT> {
 	 * @author linjie
 	 * @since 1.0.1
 	 */
-	void doJoinWork() throws Exception {
+	final void doJoinWork() throws Exception {
 		if(! this.hasJoin) {
-			// 调用实际关联信息添加实现
-			this.mappedFromParam.onJoin(this.mappedParam,
+			// 如果跳着调用保证连接链中前面的搜索参数会进行连接
+			JoinWorker<PT, SCT, RT> fromParamJoinWorker = this.mappedFromParam.usingJoinWorker;
+			if(fromParamJoinWorker != null) {
+				fromParamJoinWorker.doJoinWork();
+			}
+			// 设置为已经连接
+			this.hasJoin = true;
+			// 调用实际关联信息添加实现, 一定要是关联终点搜索参数的方法, 这样才能保证搜索内容属于该搜索参数, 方便回滚
+			this.mappedParam.onJoin(this.mappedFromParam,
 					this.mappedJoinType, this.mappedRelationType,
 					this.mappedFromField, this.mappedField);
 		}
@@ -138,24 +145,57 @@ public final class JoinWorker<PT extends AbsParameter<PT, SCT, RT>, SCT, RT> {
 	
 	/**
 	 * 
+	 * @param isNeedjudgeReachable
 	 * @throws Exception
 	 * 
 	 * @author linjie
 	 * @since 1.0.1
 	 */
-	void rollBackJoinWork() throws Exception {
-		// 字段被搜索不能回滚
+	final void cancelJoinWork(boolean isNeedjudgeReachable) throws Exception {
+		if(this.hasJoin) {
+			// 遍历一遍搜索参数字段没有输出且没有被搜索, 则需要重置关联信息
+			Collection<ParameterField<PT, SCT, RT>> judgeParamFields = null;
+			if(isNeedjudgeReachable) {
+				// 需要遍历搜索中的搜索参数及其后代搜索参数所包含的所有搜索参数字段
+				judgeParamFields = this.mappedParam.paramContext.getReachableParameterFieldsWithStartParam(this.mappedParam);
+			} else {
+				// 只需要遍历当前关联终点搜索参数自身包含的搜索参数字段(不包括继承的), 主要在关联来源尝试进行回滚时减少重复的获取
+				judgeParamFields = this.mappedParam.myParameterFields.values();
+			}
+			for(ParameterField<PT, SCT, RT> paramField : judgeParamFields) {
+				if(paramField.isOutput || paramField.isSearched) {
+					// 如果有非搜索参数类型字段输出或者被搜索了, 直接退出
+					return;
+				}
+			}
+			// 清理掉对应的关联时添加的搜索内容
+			SearchContext<PT, SCT, RT> searchContext = this.mappedParam.paramContext.getCurrentSearchContext();
+			searchContext.removeSearchEntryBySource(this.mappedParam);
+			// 还原关联标志
+			this.hasJoin = false;
+			// 对关联来源的搜索参数进行此操作(可能是一个隔代字段设置输出导致连接)
+			if(this.mappedFromParam.usingJoinWorker != null) {
+				this.mappedFromParam.usingJoinWorker.cancelJoinWork(false);
+			}
+		}
 	}
 	
 	/**
 	 * 
-	 * @throws Exception
 	 * 
 	 * @author linjie
 	 * @since 1.0.1
 	 */
-	void reset() throws Exception {
-		
+	final void reverseJoinRelation() {
+		// 原来的被关联字段和关联字段 变为 当前的关联字段和被关联字段(交换位置)
+		ParameterField<PT, SCT, RT> tmpMappedFromField = this.mappedFromField;
+		PT tmpMappedFromParam = this.mappedFromParam;
+		this.mappedFromParam = this.mappedParam;
+		this.mappedParam = tmpMappedFromParam;
+		this.mappedFromField = this.mappedField;
+		this.mappedField = tmpMappedFromField;
+		this.mappedFromField.isMappedFromField = true;
+		this.mappedField.isMappedFromField = false;
 	}
 	
 	/**

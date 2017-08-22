@@ -186,7 +186,4 @@ public class SqlSearcher<T> extends AbsSearcher<SqlParameter, SqlPiece, SqlResul
 		// TODO Auto-generated method stub
 		
 	}
-
-	
-
 }

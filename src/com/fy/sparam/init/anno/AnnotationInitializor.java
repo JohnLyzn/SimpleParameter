@@ -4,6 +4,8 @@ import static java.lang.String.format;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -38,13 +40,30 @@ implements IInitializor<PT, SCT, RT> {
 	
 	private List<Class<PT>> meetBeforeParamClasses = new LinkedList<Class<PT>>();
 	
+	/**
+	 * 
+	 * @param fieldTransformer
+	 * 
+	 * @author linjie
+	 * @since 1.0.1
+	 */
 	public AnnotationInitializor(Map<Class<?>, ITransformable<?>> fieldTransformer) {
 		this.fieldTransformer = fieldTransformer;
 	}
 	
 	@Override
-	public Map<Class<?>, ITransformable<?>> getFieldTransformers() {
+	public Map<Class<?>, ITransformable<?>> getSearcherFieldTransformers() {
 		return this.fieldTransformer;
+	}
+
+	@Override
+	public Class<?> getSearcherFieldTypeClass(AbsSearcher<PT, SCT, RT, ?> searcher) {
+		Field searcherField = (Field) searcher.getBelongParameterField().getExtra(PF_EXTRA_FIELD);
+		if(searcherField != null) {
+			Type searcherFieldGenericType = searcherField.getGenericType();
+			return (Class<?>) ((ParameterizedType) searcherFieldGenericType).getActualTypeArguments()[0];
+		}
+		return null;
 	}
 	
 	/**

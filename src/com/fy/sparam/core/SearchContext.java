@@ -1,6 +1,9 @@
 package com.fy.sparam.core;
 
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 
 public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
@@ -303,6 +306,17 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * @since 1.0.1
 		 */
 		IRelationalable<T> notInChildQuery(AbsParameter<?, ?, ?> childQuery) throws Exception;
+
+		/**
+		 * 取消对该字段的所有搜索内容
+		 * <br/> 不包括标记型的操作
+		 * 
+		 * @throws Exception 操作失败则抛出异常
+		 * 
+		 * @author linjie
+		 * @since 1.0.1
+		 */
+		void cancelSearch() throws Exception;
 		
 		/**
 		 * 标记当前字段进行分组
@@ -403,6 +417,29 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * @since 1.0.1
 		 */
 		String getWholeDbFieldName() throws Exception;
+		
+		/**
+		 * 获取搜索字段的类型转换器
+		 * 
+		 * @return 对应的搜索字段的类型转换器, 如果不存在对应类型的转换器则返回null
+		 * @throws Exception 获取失败则抛出异常
+		 * 
+		 * @author linjie
+		 * @since 1.0.1
+		 */
+		ITransformable<T> getTransformer() throws Exception;
+		
+		/**
+		 * 获取搜索字段的类型转换器, 可以指定实际类型转换器的实现类(自定义转换类型)
+		 * 
+		 * @param realTypeClass 实际的类型转换器的实现类的字节码, 不能为null
+		 * @return 对应的搜索字段的类型转换器, 且为传入的类字节码类型, 如果不存在对应类型的转换器则返回null
+		 * @throws Exception 获取失败或存在的类型转换器实现类不是指定的类类型则抛出异常
+		 * 
+		 * @author linjie
+		 * @since 1.0.1
+		 */
+		<TT extends ITransformable<T>> TT  getTransformer(Class<TT> realTypeClass) throws Exception;
 	}
 	
 	/**
@@ -501,27 +538,70 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 	}
 	
 	/**
+	 * 搜索内容源, 继承它的子类可以添加搜索内容
 	 * 
+	 * @param <PT>　搜索参数类类型
+	 * @param <SCT>　搜索内容类类型
+	 * @param <RT>　搜索结果类类型
+	 * 
+	 * @author linjie
+	 * @since 1.0.1
 	 */
-	private Map<ISearchable<?>, Map<String, SCT>> contents;
-	
-	
-	SearchContext<PT, SCT, RT> build(PT param)  throws Exception {
-		return null;
+	static abstract class SearchContentSource<SCT> {
+		
+		/**
+		 * 添加搜索内容键值对
+		 * 
+		 * @param key 自定义的搜索内容Key, 不能为null
+		 * @param searchContent 添加的搜索内容, 不能为null
+		 * @throws Exception 如果键或值为null则抛出异常
+		 * 
+		 * @author linjie
+		 * @since 1.0.1
+		 */
+		protected abstract void addSearchEntry(String key, SCT searchContent) throws Exception;
+		
+		/**
+		 * 获取对应键
+		 * @param key
+		 * @return
+		 * @throws Exception
+		 * 
+		 * @author linjie
+		 * @since 1.0.1
+		 */
+		protected abstract List<SCT> getSearchEntry(String key) throws Exception;
+		
+		/**
+		 * 
+		 * @param key 自定义的搜索内容Key, 不能为null
+		 * @throws Exception 如果键或值为null则抛出异常
+		 * 
+		 * @author linjie
+		 * @since 1.0.1
+		 */
+		protected abstract void clearSearchEntry(String key) throws Exception;
 	}
+	
+	// 所有的搜索内容
+	private Map<String, List<SCT>> contents = new HashMap<String, List<SCT>>();
+	// 描述搜索内容添加者和添加的搜索内容的映射关系, 当进行回滚时要用到
+	private Map<SearchContentSource<SCT>, Map<String, List<SCT>>> contentMapper 
+		= new HashMap<SearchContentSource<SCT>, Map<String, List<SCT>>>();
 	
 	/**
 	 * 
-	 * @param key
+	 * @param param
+	 * @return
 	 * @throws Exception
 	 * 
 	 * @author linjie
 	 * @since 1.0.1
 	 */
-	void clearAllSearchEntry(String key) throws Exception {
-		
+	final static<PT extends AbsParameter<PT, SCT, RT>, SCT, RT> SearchContext<PT, SCT, RT> build()  throws Exception {
+		return new SearchContext<PT, SCT, RT>();
 	}
-
+	
 	/**
 	 * 
 	 * @param searcher
@@ -532,8 +612,41 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 	 * @author linjie
 	 * @since 1.0.1
 	 */
-	void addSearchEntry(ISearchable<?> searcher, String key, SCT searchContent) throws Exception {
-		
+	final void addSearchEntry(SearchContentSource<SCT> source, String key, SCT searchContent) throws Exception {
+		if(source == null) {
+			throw new IllegalArgumentException("添加搜索内容不能不指定搜索内容来源");
+		}
+		if(key == null || key.isEmpty()) {
+			throw new IllegalArgumentException("添加搜索内容需要指定键");
+		}
+		if(searchContent == null) {
+			throw new IllegalArgumentException("添加的搜索内容不能为null");
+		}
+		// 添加到总的搜索内容中
+		this.addSearchContentHelper(this.contents, key, searchContent);
+		// 添加到搜索内容-源关联集合中
+		Map<String, List<SCT>> mappedContents = contentMapper.get(source);
+		if(mappedContents == null) {
+			mappedContents = new HashMap<String, List<SCT>>();
+			contentMapper.put(source, mappedContents);
+		}
+		this.addSearchContentHelper(mappedContents, key, searchContent);
+	}
+	
+	/**
+	 * 根据搜索内容的key获取它对应的值
+	 * 
+	 * @param key 搜索内容的key, 由parameter实现类自定义
+	 * @return key对应的搜索内容值, 如果没有则返回null
+	 *
+	 * @author linjie
+	 * @since 1.0.1
+	 */
+	final List<SCT> getSearchEntry(String key) {
+		if(key == null || key.isEmpty()) {
+			throw new IllegalArgumentException("移除搜索内容需要指定键");
+		}
+		return this.contents.get(key);
 	}
 	
 	/**
@@ -545,8 +658,42 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 	 * @author linjie
 	 * @since 1.0.1
 	 */
-	void clearSearchEntry(ISearchable<?> searcher, String key) throws Exception {
-		
+	final void clearSearchEntry(String key) throws Exception {
+		if(key == null || key.isEmpty()) {
+			throw new IllegalArgumentException("移除搜索内容需要指定键");
+		}
+		if(this.contents.containsKey(key)) {
+			List<SCT> vals = this.contents.get(key);
+			if(vals != null && ! vals.isEmpty()) {
+				vals.clear();
+			}
+		}
+	}
+	
+	/**
+	 * 
+	 * @param source
+	 * @throws Exception
+	 * 
+	 * @author linjie
+	 * @since 1.0.1
+	 */
+	final void removeSearchEntryBySource(SearchContentSource<SCT> source) throws Exception {
+		if(source == null) {
+			throw new IllegalArgumentException("移除搜索内容不能不指定搜索内容来源");
+		}
+		Map<String, List<SCT>> needRemoveContents = this.contentMapper.get(source);
+		if(needRemoveContents != null && ! needRemoveContents.isEmpty()) {
+			for(String key : needRemoveContents.keySet()) {
+				List<SCT> needRemoveVals = needRemoveContents.get(key);
+				List<SCT> vals = this.contents.get(key);
+				if(needRemoveVals != null && ! needRemoveVals.isEmpty()
+						&& vals != null && ! vals.isEmpty()) {
+					vals.removeAll(needRemoveVals);
+				}
+			}
+			this.contentMapper.remove(source);
+		}
 	}
 	
 	/**
@@ -556,8 +703,27 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 	 * @author linjie
 	 * @since 1.0.1
 	 */
-	void reset() throws Exception {
+	final void reset() throws Exception {
 		this.contents.clear();
+	}
+	
+	/**
+	 * 
+	 * @param contentsRef
+	 * @param key
+	 * @param content
+	 * 
+	 * @author linjie
+	 * @since 1.0.1
+	 */
+	private void addSearchContentHelper(Map<String, List<SCT>> contentsRef,
+			String key, SCT content) {
+		List<SCT> vals = contentsRef.get(key);
+		if(vals == null) {
+			vals = new LinkedList<SCT>();
+			contentsRef.put(key, vals);
+		}
+		vals.add(content);
 	}
 	
 	/**

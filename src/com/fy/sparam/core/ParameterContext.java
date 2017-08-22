@@ -1,13 +1,13 @@
 package com.fy.sparam.core;
 
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.Stack;
 
 import com.fy.sparam.core.AbsParameter.IInitializor;
 import com.fy.sparam.core.AbsParameter.ParameterType;
@@ -35,27 +35,30 @@ public final class ParameterContext<PT extends AbsParameter<PT, SCT, RT>, SCT, R
 	 * @since 1.0.1
 	 */
 	public static final String PATH_SPERATOR = ".";
-	
-	// 所有搜索连接器检查用的数据
-	boolean isAutoAppend = false; /*是否自动追加连接器*/
-	boolean isAutoAppendAnd = true; /*是否自动追加And连接器, 否则是Or*/
-	boolean appendCheckFlag = true; /*检查连接是否完整, 所有搜索器共用一个, 所以放搜索参数*/
-	int delimiterStartCount = 0;
-	int delimiterEndCount = 0;
+	// 全局使用的搜索参数对象初始化器
+	IInitializor<PT, SCT, RT> intializor;
+	// 所有搜索字段类型转换器
+	Map<Class<?>, ITransformable<?>> fieldTransformer;
+	// 所有的有关搜索参数和搜索参数字段和搜索器
+	PT rootParam;
+	Set<PT> allParams = new HashSet<PT>(); /* 不包括继承和动态关联的 */
+	Set<AbsSearcher<PT, SCT, RT, ?>> allSearchers = new HashSet<AbsSearcher<PT, SCT, RT, ?>>(); /* 不包括继承和动态关联的 */
+	Set<ParameterField<PT, SCT, RT>> allParamFields = new HashSet<ParameterField<PT, SCT, RT>>(); /* 不包括动态关联的 */
+	// 当前拥有的搜索内容
+	SearchContext<PT, SCT, RT> usingSearchContext;
 	// 分页信息(包括当前搜索参数和后代/关联搜索参数的, 公用一个)
 	int page;
 	int count;
 	// 所有关联搜索参数的处理计数器(防止同类进行关联导致别名冲突)
 	int joinCounter;
-	// 全局使用的搜索参数对象初始化器
-	IInitializor<PT, SCT, RT> intializor;
-	// 所有搜索字段类型转换器
-	private Map<Class<?>, ITransformable<?>> fieldTransformer;
-	// 所有的有关搜索参数和搜索参数字段和搜索器, 它们的Key都是相对于根搜索参数的搜索参数对象路径(如a.b.c)
-	final static String KEY_ROOT_PARAM = "ROOT_PARAM"; /* 根搜索参数的Key */
-	Map<String, PT> allParams = new HashMap<String, PT>(); /* 不包括继承和动态关联的 */
-	Map<String, AbsSearcher<PT, SCT, RT, ?>> allSearchers = new HashMap<String, AbsSearcher<PT, SCT, RT, ?>>(); /* 不包括继承和动态关联的 */
-	Set<ParameterField<PT, SCT, RT>> allParamFields = new HashSet<ParameterField<PT, SCT, RT>>(); /* 不包括动态关联的 */
+	// 所有搜索内容逻辑关系检查用的数据
+	boolean isAutoAddRelation = false; /* 是否自动为条件追加逻辑关系 */
+	boolean isAutoAddAnd = true; /* 自动追加的逻辑关系是否是And, false则是Or */
+	boolean relationalCheckFlag = true; /* 用来检查连接是否完整的标志 */
+	int delimiterStartCount = 0;
+	int delimiterEndCount = 0;
+	// 动态关联相关信息
+	Map<PT, ParameterContext<PT, SCT, RT>> dynamicJoinParamContextPool;
 	
 	/**
 	 * 
@@ -67,7 +70,7 @@ public final class ParameterContext<PT extends AbsParameter<PT, SCT, RT>, SCT, R
 	 * @author linjie
 	 * @since 1.0.1
 	 */
-	public void registerInheritJoinedParameter(PT fromParam, PT inheritJoinedParam,
+	public final void registerInheritJoinedParameter(PT fromParam, PT inheritJoinedParam,
 			JoinType joinType, RelationType relationType,
 			String fromFieldName, String toFieldName,
 			Object...args) throws Exception {
@@ -82,7 +85,8 @@ public final class ParameterContext<PT extends AbsParameter<PT, SCT, RT>, SCT, R
 				relationType, fromFieldName, toFieldName, args);
 		// 注册为关联起点搜索参数的关联搜索参数
 		fromParam.registerInheritJoinedParameter(inheritJoinedParam);
-		/* 继承关联不需要注册到上下文中 */
+		// 注册到上下文
+		this.allParams.add(inheritJoinedParam);
 	}
 	
 	/**
@@ -95,7 +99,7 @@ public final class ParameterContext<PT extends AbsParameter<PT, SCT, RT>, SCT, R
 	 * @author linjie
 	 * @since 1.0.1
 	 */
-	public void registerDefaultJoinedParameter(PT fromParam, PT defaultJoinedParam,
+	public final void registerDefaultJoinedParameter(PT fromParam, PT defaultJoinedParam,
 			JoinType joinType, RelationType relationType,
 			String fromFieldName, String toFieldName,
 			Object...args) throws Exception {
@@ -110,9 +114,8 @@ public final class ParameterContext<PT extends AbsParameter<PT, SCT, RT>, SCT, R
 				relationType, fromFieldName, toFieldName, args);
 		// 注册为源搜索参数的关联搜索参数
 		fromParam.registerDefaultJoinedParameter(defaultJoinedParam);
-		// 生成路径, 注册到上下文中
-		String path = this.getParameterObjPath(defaultJoinedParam);
-		this.allParams.put(path, defaultJoinedParam);
+		// 注册到上下文
+		this.allParams.add(defaultJoinedParam);
 	}
 	
 	/**
@@ -124,7 +127,7 @@ public final class ParameterContext<PT extends AbsParameter<PT, SCT, RT>, SCT, R
 	 * @author linjie
 	 * @since 1.0.1
 	 */
-	public void registerParameterField(PT belongParam, ParameterField<PT, SCT, RT> paramField, Object...args) throws Exception {
+	public final void registerParameterField(PT belongParam, ParameterField<PT, SCT, RT> paramField, Object...args) throws Exception {
 		// 调用初始化器进行初始化(所属搜索参数中不需要额外操作)
 		this.intializor.initParameterField(paramField, args);
 		// 注册到所属搜索参数中(先注册设置与字段中与搜索参数相关的属性)
@@ -143,7 +146,7 @@ public final class ParameterContext<PT extends AbsParameter<PT, SCT, RT>, SCT, R
 	 * @since 1.0.1
 	 */
 	@SuppressWarnings("unchecked")
-	public void registerSeacher(PT belongParam,  ParameterField<PT, SCT, RT> belongParamField,
+	public final void registerSeacher(PT belongParam,  ParameterField<PT, SCT, RT> belongParamField,
 			ISearchable<?> searcher, Object...args) throws Exception {
 		AbsSearcher<PT, SCT, RT, ?> searcherReal = (AbsSearcher<PT, SCT, RT, ?>) searcher;
 		// 调用初始化器进行初始化(所属搜索参数中不需要额外操作)
@@ -151,8 +154,7 @@ public final class ParameterContext<PT extends AbsParameter<PT, SCT, RT>, SCT, R
 		// 注册到所属搜索参数中
 		belongParam.registerSeacher(belongParamField, searcherReal); 
 		// 生成路径, 注册到上下文中
-		String path = this.getParameterObjPath(searcherReal);
-		this.allSearchers.put(path, searcherReal);
+		this.allSearchers.add(searcherReal);
 	}
 
 	/**
@@ -162,8 +164,41 @@ public final class ParameterContext<PT extends AbsParameter<PT, SCT, RT>, SCT, R
 	 * @author linjie
 	 * @since 1.0.1
 	 */
-	public Collection<ParameterField<PT, SCT, RT>> getAllParameterFields() {
+	public final PT getRootParameter() {
+		return this.rootParam;
+	}
+	
+	/**
+	 * 
+	 * @return
+	 * 
+	 * @author linjie
+	 * @since 1.0.1
+	 */
+	public final Collection<ParameterField<PT, SCT, RT>> getAllParameterFields() {
 		return this.allParamFields;
+	}
+	
+	/**
+	 * 
+	 * @param mappedParam
+	 * @return
+	 * 
+	 * @author linjie
+	 * @since 1.0.1
+	 */
+	public final Collection<ParameterField<PT, SCT, RT>> getReachableParameterFieldsWithStartParam(PT startParam) {
+		if(startParam.paramType == ParameterType.ROOT) {
+			return this.allParamFields;
+		}
+		String paramPath = this.getParameterObjPath(startParam);
+		List<ParameterField<PT, SCT, RT>> result = new LinkedList<ParameterField<PT, SCT, RT>>();
+		for(ParameterField<PT, SCT, RT> paramField : this.allParamFields) {
+			if(paramField.fieldPath.startsWith(paramPath)) {
+				result.add(paramField);
+			}
+		}
+		return result;
 	}
 	
 	/**
@@ -175,7 +210,7 @@ public final class ParameterContext<PT extends AbsParameter<PT, SCT, RT>, SCT, R
 	 */
 	ParameterContext(IInitializor<PT, SCT, RT> intializor) {
 		this.intializor = intializor;
-		this.fieldTransformer = intializor.getFieldTransformers();
+		this.fieldTransformer = intializor.getSearcherFieldTransformers();
 	}
 	
 	/**
@@ -185,14 +220,15 @@ public final class ParameterContext<PT extends AbsParameter<PT, SCT, RT>, SCT, R
 	 * @author linjie
 	 * @since 1.0.1
 	 */
-	void registerRootParameter(PT rootParam) {
+	final void registerRootParameter(PT rootParam) {
 		if(rootParam.paramType != ParameterType.ROOT) {
 			throw new IllegalArgumentException("指定的搜索参数不是根搜索参数");
 		}
-		if(this.allParams.containsKey(KEY_ROOT_PARAM)) {
+		if(this.rootParam != null) {
 			throw new IllegalArgumentException("已存在根搜索参数");
 		}
-		this.allParams.put(KEY_ROOT_PARAM, rootParam);
+		this.rootParam = rootParam;
+		this.allParams.add(rootParam);
 	}
 	
 	/**
@@ -204,14 +240,29 @@ public final class ParameterContext<PT extends AbsParameter<PT, SCT, RT>, SCT, R
 	 * @author linjie
 	 * @since 1.0.1
 	 */
-	void generateGlobalNonConflictTableAlias(int startCount) {
+	final void generateGlobalNonConflictTableAlias(int startCount) {
 		if(startCount < 0) {
 			startCount = 0;
 		}
 		this.joinCounter = startCount;
-		for(PT param : this.allParams.values()) {
+		for(PT param : this.allParams) {
 			param.setTableAlias(StringUtils.concat(param.getTableAlias(), "_", this.joinCounter));
 			this.joinCounter ++;
+		}
+	}
+	
+	/**
+	 * 
+	 * <br/> 破坏性的, 不可复原.
+	 * 
+	 * @param startCount 计数起点, 必须大于0
+	 * 
+	 * @author linjie
+	 * @since 1.0.1
+	 */
+	final void generateAllParameterFieldPath() {
+		for(ParameterField<PT, SCT, RT> paramField : this.allParamFields) {
+			paramField.fieldPath = this.getParameterObjPath(paramField);
 		}
 	}
 	
@@ -225,7 +276,7 @@ public final class ParameterContext<PT extends AbsParameter<PT, SCT, RT>, SCT, R
 	 * @since 1.0.1
 	 */
 	@SuppressWarnings("unchecked")
-	<T> ITransformable<T> getFieldTranslator(Class<T> typeClass) {
+	final <T> ITransformable<T> getFieldTransformer(Class<T> typeClass) {
 		if(this.fieldTransformer == null) {
 			return null;
 		}
@@ -238,23 +289,34 @@ public final class ParameterContext<PT extends AbsParameter<PT, SCT, RT>, SCT, R
 	}
 	
 	/**
-	 * 获取搜索信息(包括表名, 字段名等等)所属的搜索参数字段
-	 * <br/> 作为关联字段的搜索器时, 该搜索参数字段为关联起点搜索参数的字段
 	 * 
-	 * @param isIgnoreDynamic 是否忽略动态关联的搜索参数部分
+	 * @return
+	 * 
+	 * @author linjie
+	 * @since 1.0.1
+	 */
+	final SearchContext<PT, SCT, RT> getCurrentSearchContext() throws Exception {
+		if(this.usingSearchContext == null) {
+			this.usingSearchContext = SearchContext.build();
+		}
+		return this.usingSearchContext;
+	}
+	
+	/**
+	 * 获取最短关联信息情况下搜索信息(包括表名, 字段名等等)所属的搜索参数字段
+	 * <br/> 功能方法, 与当前上下文无关
+	 * 
+	 * @param paramField 指定的搜索参数字段
 	 * @return 搜索信息所属的搜索参数字段
 	 *
 	 * @author linjie
 	 * @since 1.0.1
 	 */
-	ParameterField<PT, SCT, RT> getSearchParameterField(ParameterField<PT, SCT, RT> paramField,
-			boolean isIgnoreDynamic) {
+	final ParameterField<PT, SCT, RT> getIndeedSearchParameterField(ParameterField<PT, SCT, RT> paramField) {
 		ParameterField<PT, SCT, RT> tmpParamField = paramField;
 		PT param = tmpParamField.belongParameter;
-		while(param.usingJoinWorker != null) {
-			if(isIgnoreDynamic && param.isDynamicJoinParameter()) {
-				break;
-			}
+		// 如果所属搜索参数是关联搜索参数且指定字段是该搜素参数关联关系中关联终点字段, 则往上找最少关联信息的搜索参数字段
+		while(param.usingJoinWorker != null && paramField.equals(param.usingJoinWorker.mappedField)) {
 			tmpParamField = param.usingJoinWorker.mappedFromField;
 			param = param.usingJoinWorker.mappedFromParam;
 		}
@@ -263,15 +325,15 @@ public final class ParameterContext<PT extends AbsParameter<PT, SCT, RT>, SCT, R
 	
 	/**
 	 * 在默认关联的后代搜索参数沿着关联链进行查询以指定的搜索字段为代表操作的字段的搜索参数字段
+	 * <br/> 功能方法, 与当前上下文无关
 	 * 
-	 * @param target 指定的搜索字段, 是代表返回字段操作的搜索参数字段, 不能为null
-	 * @param currentMappedFrom 当前遍历到哪个关联头端搜索参数字段, 不能为null
+	 * @param startParamField 指定的搜索字段, 是代表返回字段操作的搜索参数字段, 不能为null
 	 * @return 以指定的搜索字段为代表操作的字段的搜索参数字段, 默认关联链中找不到返回null
 	 * 
 	 * @author linjie
 	 * @since 1.0.1
 	 */
-	ParameterField<PT, SCT, RT> getIndeedRepresentByParamField(ParameterField<PT, SCT, RT> startParamField) {
+	final ParameterField<PT, SCT, RT> getIndeedRepresentParamField(ParameterField<PT, SCT, RT> startParamField) {
 		PT currentParam = startParamField.belongParameter;
 		ParameterField<PT, SCT, RT> currentParamField = startParamField;
 		while(currentParamField.isMappedFromField) {
@@ -297,60 +359,89 @@ public final class ParameterContext<PT extends AbsParameter<PT, SCT, RT>, SCT, R
 	}
 	
 	/**
-	 * 反转指定路径上的搜索参数关联关系
+	 * 反转指定关联路径上的搜索参数关联关系
+	 * <br/> 功能方法, 与当前上下文无关
 	 * 
 	 * @param start 开始搜索参数
 	 * @param end 结束搜索参数
-	 * @param lastMappedFrom 结束时设置最后一个搜索参数从哪个搜索参数关联
-	 * @param lastMappedFromField 结束时设置最后一个搜索参数从哪个字段关联
-	 * @param lastMappedField 结束时设置最后一个搜索参数的关联字段
-	 * @param lastJoinType 结束时设置最后一个搜索参数的关联类型
-	 * @param lastRelationType 结束时设置最后一个搜索参数的关联关系类型
+	 * @param endSetJoinWorker 结束时设置最后一个搜索参数的关联处理器
 	 *
 	 * @author linjie
 	 * @since 1.0.1
 	 */
-	void reverseParameterJoinDirection(PT start, PT end, JoinWorker<PT, SCT, RT> endSetJoinWorker) {
-//		if(! start.equals(end) && start.mappedFromParam != null) {
-//			// 利用栈, 先压后出使得能够获取相反顺序, 不包括end(独立处理)
-//			Stack<AbsParameter<SCT, RT>> stack = new Stack<AbsParameter<SCT, RT>>();
-//			stack.push(start);
-//			AbsParameter<SCT, RT> current = start;
-//			while(! current.equals(end)) {
-//				current = current.mappedFromParam;
-//				stack.push(current);
-//			}
-//			// 出栈倒序, 一二交换
-//			current = stack.pop();
-//			while(! stack.isEmpty()) {
-//				AbsParameter<SCT, RT> currentNext = stack.pop();
-//				if(currentNext != null) {
-//					ParameterField tmpMappedFromField = currentNext.mappedFromField;
-//					ParameterField tmpMappedField = currentNext.mappedField;
-//					JoinType tmpJoinType = currentNext.mappedJoinType;
-//					RelationType tmpRelationType = currentNext.mappedRelationType;
-//					// 原来的被关联字段和关联字段 变为 当前的关联字段和被关联字段(交换位置)
-//					currentNext.mappedFromField = current.mappedField;
-//					currentNext.mappedField = current.mappedFromField;
-//					currentNext.mappedJoinType = current.mappedJoinType;
-//					currentNext.mappedRelationType = current.mappedRelationType;
-//					
-//					current.mappedField = tmpMappedFromField;
-//					current.mappedFromField = tmpMappedField;
-//					current.mappedJoinType = tmpJoinType;
-//					current.mappedRelationType = tmpRelationType;
-//					
-//					current.mappedFromParam = currentNext;
-//				}
-//				current = currentNext;
-//			}
-//		}
-//		// 反转后原来链表的start即现在链表的end, 对end设置实际关联的搜索参数关联到实际被关联的搜索参数以及设置好对应关联字段
-//		start.mappedFromParam = lastMappedFrom;
-//		start.mappedFromField = lastMappedFromField;
-//		start.mappedField = lastMappedField;
-//		start.mappedJoinType = lastJoinType;
-//		start.mappedRelationType = lastRelationType;
+	final void reverseParametersJoinDirection(PT start, PT end, JoinWorker<PT, SCT, RT> endSetJoinWorker) {
+		// 如果开始等于结尾或开始的关联处理器为null, 则不用处理
+		if(! start.equals(end) && start.usingJoinWorker != null) {
+			// 利用栈, 先压后出使得能够获取相反顺序, 不包括end(独立处理)
+			Stack<PT> stack = new Stack<PT>();
+			stack.push(start);
+			PT current = start;
+			while(! current.equals(end)) {
+				if(current.usingJoinWorker == null) {
+					throw new IllegalArgumentException("关联路径上存在非关联搜索参数");
+				}
+				current = current.usingJoinWorker.mappedFromParam;
+				stack.push(current);
+			}
+			// 出栈倒置关联关系
+			current = stack.pop();
+			while(! stack.isEmpty()) {
+				PT currentLast = stack.pop();
+				if(currentLast.usingJoinWorker != null) {
+					// 反转关联方向, 并改变拥有关联处理器的搜索参数
+					JoinWorker<PT, SCT, RT> tmpJoinWorker = currentLast.usingJoinWorker;
+					tmpJoinWorker.reverseJoinRelation();
+					currentLast.usingJoinWorker = current.usingJoinWorker;
+					current.usingJoinWorker = tmpJoinWorker;
+				}
+			}
+		}
+		// 反转后原来链表的start即现在关联链表的end, 对现在关联链表的end(即start)设置指定的关联处理器
+		start.usingJoinWorker = endSetJoinWorker;
+	}
+	
+	/**
+	 * 
+	 * @param param
+	 * @return
+	 * 
+	 * @author linjie
+	 * @since 1.0.1
+	 */
+	boolean isReachableParameter(PT param) {
+		if(this.allParams.contains(param)) {
+			return true;
+		}
+		if(this.dynamicJoinParamContextPool != null && ! this.dynamicJoinParamContextPool.isEmpty()) {
+			for(PT dynamicJoinParam : this.dynamicJoinParamContextPool.keySet()) {
+				if(dynamicJoinParam.paramContext.isReachableParameter(param)) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+	
+	/**
+	 * 
+	 * @param searcher
+	 * @return
+	 * 
+	 * @author linjie
+	 * @since 1.0.1
+	 */
+	boolean isReachableSeacher(AbsSearcher<PT, SCT, RT, ?> searcher) {
+		if(this.allSearchers.contains(searcher)) {
+			return true;
+		}
+		if(this.dynamicJoinParamContextPool != null && ! this.dynamicJoinParamContextPool.isEmpty()) {
+			for(PT dynamicJoinParam : this.dynamicJoinParamContextPool.keySet()) {
+				if(dynamicJoinParam.paramContext.isReachableSeacher(searcher)) {
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 	
 	/**
@@ -362,7 +453,7 @@ public final class ParameterContext<PT extends AbsParameter<PT, SCT, RT>, SCT, R
 	 * @since 1.0.1
 	 */
 	@SuppressWarnings("unchecked")
-	<POT> String getParameterObjPath(POT target) {
+	final <POT> String getParameterObjPath(POT target) {
 		boolean isParam = target instanceof AbsParameter;
 		boolean isSearcher = target instanceof AbsSearcher;
 		boolean isParamField = target instanceof ParameterField;
@@ -378,6 +469,7 @@ public final class ParameterContext<PT extends AbsParameter<PT, SCT, RT>, SCT, R
 		}
 		if(isSearcher) {
 			searcher = (AbsSearcher<PT, SCT, RT, ?>) target;
+			paramField = searcher.belongParameterField;
 			param = searcher.belongParameter;
 		}
 		if(isParamField) {
@@ -395,7 +487,11 @@ public final class ParameterContext<PT extends AbsParameter<PT, SCT, RT>, SCT, R
 			if(isParam) { /* 搜索参数应是关联起点搜索参数字段的名称 */
 				resultBuilder.append(param.usingJoinWorker.mappedFromField.fieldName);
 			}
-			if(isParamField || isSearcher) { /* 搜索参数字段和搜索器即关联终点搜索参数字段的名称(已经确定是关联搜索参数情况下) */
+			if(isParamField || isSearcher) {
+				if(paramField.usingSearcher != null) {
+					// 如果是非关联起点搜索参数字段情况下, 使用指定搜索参数字段的名称
+					currentParamField = paramField;
+				}
 				resultBuilder.append(currentParamField.fieldName);
 			}
 			// 只能生成默认关联的路径
@@ -428,7 +524,7 @@ public final class ParameterContext<PT extends AbsParameter<PT, SCT, RT>, SCT, R
 	 * @since 1.0.1
 	 */
 	@SuppressWarnings("unchecked")
-	<POT> POT getParameterObjWithStartParam(PT startParam, Class<POT> targetClass, String targetPath) {
+	final <POT> POT getParameterObjWithStartParam(PT startParam, Class<POT> targetClass, String targetPath) {
 		if(targetClass == null) {
 			throw new IllegalArgumentException("根据路径获取搜索参数对象时结果类类型不能为null");
 		}
@@ -492,7 +588,7 @@ public final class ParameterContext<PT extends AbsParameter<PT, SCT, RT>, SCT, R
 		}
 		if(needSearcher) { /* 要返回搜索器类型 */
 			// 找到对应名字的字段, 包括继承的搜索器(继承的是不可能重复名字的, 编译报错)
-			for(AbsSearcher<PT, SCT, RT, ?> searcher  : currentParam.ownedSearchers) {
+			for(AbsSearcher<PT, SCT, RT, ?> searcher  : currentParam.myOwnedSearchers) {
 				ParameterField<PT, SCT, RT> paramField = searcher.getBelongParameterField();
 				if(paramField.getFieldName().equals(path)) {
 					result = searcher;
@@ -511,15 +607,15 @@ public final class ParameterContext<PT extends AbsParameter<PT, SCT, RT>, SCT, R
 	 * @author linjie
 	 * @since 1.0.1
 	 */
-	Collection<AbsSearcher<PT, SCT, RT, ?>> getAllSearchersWithStartParam(PT startParam) {
+	final Collection<AbsSearcher<PT, SCT, RT, ?>> getAllSearchersWithStartParam(PT startParam) {
 		if(startParam.paramType == ParameterType.ROOT) {
-			return this.allSearchers.values();
+			return this.allSearchers;
 		}
 		String paramPath = this.getParameterObjPath(startParam);
 		List<AbsSearcher<PT, SCT, RT, ?>> result = new LinkedList<AbsSearcher<PT, SCT, RT, ?>>();
-		for(Entry<String, AbsSearcher<PT, SCT, RT, ?>> entry : this.allSearchers.entrySet()) {
-			if(entry.getKey().startsWith(paramPath)) {
-				result.add(entry.getValue());
+		for(AbsSearcher<PT, SCT, RT, ?> searcher : this.allSearchers) {
+			if(searcher.belongParameterField.fieldPath.startsWith(paramPath)) {
+				result.add(searcher);
 			}
 		}
 		return result;

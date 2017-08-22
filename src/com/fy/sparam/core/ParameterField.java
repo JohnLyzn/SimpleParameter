@@ -115,6 +115,14 @@ public final class ParameterField<PT extends AbsParameter<PT, SCT, RT>, SCT, RT>
 	PT belongParameter;
 	
 	/**
+	 * 可以自定义的额外的信息存储容器器
+	 * 
+	 * @author linjie
+	 * @since 1.0.1
+	 */
+	Map<String, Object> extraInfo;
+
+	/**
 	 * 使用的搜索器
 	 * <br/> 如果是被关联字段, 则使用的搜索器必为null
 	 * 
@@ -122,23 +130,6 @@ public final class ParameterField<PT extends AbsParameter<PT, SCT, RT>, SCT, RT>
 	 * @since 1.0.2
 	 */
 	AbsSearcher<PT, SCT, RT, ?> usingSearcher;
-	
-	/**
-	 * 使用的连接器，如果该搜索参数字段不是关联终点字段则为null
-	 * <br/> 该JoinWorker中mappedField必为当前搜索参数字段.
-	 * 
-	 * @author linjie
-	 * @since 1.0.2
-	 */
-	JoinWorker<PT, SCT, RT> usingJoinWorker;
-	
-	/**
-	 * 可以自定义的额外的信息存储容器器
-	 * 
-	 * @author linjie
-	 * @since 1.0.1
-	 */
-	Map<String, Object> extraInfo;
 
 	/**
 	 * 是否是被关联字段
@@ -155,7 +146,7 @@ public final class ParameterField<PT extends AbsParameter<PT, SCT, RT>, SCT, RT>
 	public void setFieldName(String fieldName) {
 		this.fieldName = fieldName;
 	}
-
+	
 	public String getDbFieldName() {
 		return dbFieldName;
 	}
@@ -212,11 +203,36 @@ public final class ParameterField<PT extends AbsParameter<PT, SCT, RT>, SCT, RT>
 		this.groupByPriority = groupByPriority;
 	}
 
-	public boolean isSearched() {
+	/**
+	 * 
+	 * @return
+	 * 
+	 * @author linjie
+	 * @since 1.0.1
+	 */
+	public final String getFieldPath() {
+		return fieldPath;
+	}
+	
+	/**
+	 * 
+	 * @return
+	 * 
+	 * @author linjie
+	 * @since 1.0.1
+	 */
+	public final boolean isSearched() {
 		return isSearched;
 	}
 
-	public boolean isOutput() {
+	/**
+	 * 
+	 * @return
+	 * 
+	 * @author linjie
+	 * @since 1.0.1
+	 */
+	public final boolean isOutput() {
 		return isOutput;
 	}
 
@@ -249,7 +265,7 @@ public final class ParameterField<PT extends AbsParameter<PT, SCT, RT>, SCT, RT>
 		ParameterField<PT, SCT, RT> targetParamField = this;
 		// 如果是被关联字段, 则找到实际代表操作的字段, 使用其所属搜索参数的表别名
 		if(this.isMappedFromField) {
-			targetParamField = this.belongParameter.paramContext.getIndeedRepresentByParamField(this);
+			targetParamField = this.belongParameter.paramContext.getIndeedRepresentParamField(this);
 			targetParam = targetParamField.belongParameter;
 		}
 		// 如果是继承搜索参数, 需要使用最终子类搜索参数的表别名
