@@ -682,17 +682,19 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		if(source == null) {
 			throw new IllegalArgumentException("移除搜索内容不能不指定搜索内容来源");
 		}
-		Map<String, List<SCT>> needRemoveContents = this.contentMapper.get(source);
-		if(needRemoveContents != null && ! needRemoveContents.isEmpty()) {
-			for(String key : needRemoveContents.keySet()) {
-				List<SCT> needRemoveVals = needRemoveContents.get(key);
-				List<SCT> vals = this.contents.get(key);
-				if(needRemoveVals != null && ! needRemoveVals.isEmpty()
-						&& vals != null && ! vals.isEmpty()) {
-					vals.removeAll(needRemoveVals);
+		if(! this.contents.isEmpty()) {
+			Map<String, List<SCT>> needRemoveContents = this.contentMapper.get(source);
+			if(needRemoveContents != null && ! needRemoveContents.isEmpty()) {
+				for(String key : needRemoveContents.keySet()) {
+					List<SCT> needRemoveVals = needRemoveContents.get(key);
+					List<SCT> vals = this.contents.get(key);
+					if(needRemoveVals != null && ! needRemoveVals.isEmpty()
+							&& vals != null && ! vals.isEmpty()) {
+						vals.removeAll(needRemoveVals);
+					}
 				}
+				this.contentMapper.remove(source);
 			}
-			this.contentMapper.remove(source);
 		}
 	}
 	
@@ -703,8 +705,9 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 	 * @author linjie
 	 * @since 1.0.1
 	 */
-	final void reset() throws Exception {
+	final void clear() throws Exception {
 		this.contents.clear();
+		this.contentMapper.clear();
 	}
 	
 	/**

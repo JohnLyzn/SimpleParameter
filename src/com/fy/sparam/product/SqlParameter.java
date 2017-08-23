@@ -124,7 +124,7 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 	 */
 	public static <SPT extends SqlParameter> SPT getParameter(Class<SPT> paramClazz) throws Exception {
 		SPT param = paramClazz.newInstance();
-		param.init(annoInitializor, SqlSearcher.class, SqlParameter.class, null, null);
+		param.init(annoInitializor, SqlSearcher.class, SqlParameter.class, null, null, null);
 		param.setPage(1);
 		param.setCount(500);
 		return param;

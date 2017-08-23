@@ -1,5 +1,6 @@
 package com.fy.sparam.core;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -57,8 +58,9 @@ public final class ParameterContext<PT extends AbsParameter<PT, SCT, RT>, SCT, R
 	boolean relationalCheckFlag = true; /* 用来检查连接是否完整的标志 */
 	int delimiterStartCount = 0;
 	int delimiterEndCount = 0;
-	// 动态关联相关信息
-	Map<PT, ParameterContext<PT, SCT, RT>> dynamicJoinParamContextPool;
+	// 动态关联相关信息, 一个搜素参数上下文统一管理
+	Map<PT, ParameterContext<PT, SCT, RT>> dynamicJoinParamContextPool; /* 动态关联起点的搜索参数树已经动态关联的搜索参数信息 */
+	PT realDynamicJoinParam; /* 被动态关联的根搜索参数进行过最短关联处理后实际用来关联的搜索参数 */
 	
 	/**
 	 * 
@@ -176,7 +178,10 @@ public final class ParameterContext<PT extends AbsParameter<PT, SCT, RT>, SCT, R
 	 * @since 1.0.1
 	 */
 	public final Collection<ParameterField<PT, SCT, RT>> getAllParameterFields() {
-		return this.allParamFields;
+		List<ParameterField<PT, SCT, RT>> result = 
+				new ArrayList<ParameterField<PT, SCT, RT>>(this.recursiveGetAllParameterFieldsCount(0));
+		this.recursiveGetAllParameterFields(result);
+		return result;
 	}
 	
 	/**
@@ -619,5 +624,39 @@ public final class ParameterContext<PT extends AbsParameter<PT, SCT, RT>, SCT, R
 			}
 		}
 		return result;
+	}
+	
+	/**
+	 * 
+	 * @param currentCount
+	 * @return
+	 * 
+	 * @author linjie
+	 * @since 1.0.1
+	 */
+	private int recursiveGetAllParameterFieldsCount(int currentCount) {
+		currentCount += this.allParamFields.size();
+		if(this.dynamicJoinParamContextPool != null && ! this.dynamicJoinParamContextPool.isEmpty()) {
+			for(ParameterContext<PT, SCT, RT> paramContext : this.dynamicJoinParamContextPool.values()) {
+				currentCount = paramContext.recursiveGetAllParameterFieldsCount(currentCount);
+			}
+		}
+		return currentCount;
+	}
+	
+	/**
+	 * 
+	 * @param container
+	 * 
+	 * @author linjie
+	 * @since 1.0.1
+	 */
+	private void recursiveGetAllParameterFields(Collection<ParameterField<PT, SCT, RT>> container) {
+		container.addAll(this.allParamFields);
+		if(this.dynamicJoinParamContextPool != null && ! this.dynamicJoinParamContextPool.isEmpty()) {
+			for(ParameterContext<PT, SCT, RT> paramContext : this.dynamicJoinParamContextPool.values()) {
+				paramContext.recursiveGetAllParameterFields(container);
+			}
+		}
 	}
 }

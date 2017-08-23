@@ -2,6 +2,8 @@ package com.fy.sparam.core;
 
 import java.util.Collection;
 
+import com.fy.sparam.util.StringUtils;
+
 /**
  * 关联关系连接器
  * 
@@ -87,12 +89,17 @@ public final class JoinWorker<PT extends AbsParameter<PT, SCT, RT>, SCT, RT> {
 	}
 	
 	boolean hasJoin;
+	PT mappedFromParam;
+	PT mappedParam;
+	ParameterField<PT, SCT, RT> mappedFromField;
+	ParameterField<PT, SCT, RT> mappedField;
 	JoinType mappedJoinType;
 	RelationType mappedRelationType;
-	ParameterField<PT, SCT, RT> mappedField;
-	ParameterField<PT, SCT, RT> mappedFromField;
-	PT mappedParam;
-	PT mappedFromParam;
+	
+	@Override
+	public String toString() {
+		return StringUtils.concat("from ", mappedFromField, " to ", mappedField);
+	}
 	
 	/**
 	 * 

@@ -2,6 +2,7 @@ package com.fy.sparam.core;
 
 import static java.lang.String.format;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -156,10 +157,9 @@ extends SearchContentSource<SCT> {
 	Map<ParameterField<PT, SCT, RT>, AbsSearcher<PT, SCT, RT, ?>> mySearchers; /* key是搜索器使用的搜索参数字段 */
 	Map<ParameterField<PT, SCT, RT>, PT> myDefaultJoinedParams; /* key是关联起点搜索参数字段(属于当前搜索参数的) */
 	Map<ParameterField<PT, SCT, RT>, PT> myInheritJoinedParams;
+	Map<ParameterField<PT, SCT, RT>, PT> myDynamicJoinedParams;
 	List<ParameterField<PT, SCT, RT>> myOwnedParameterFields; /* 包括当前搜索参数子级的和所有继承的父级搜索参数的搜索器 */
 	List<AbsSearcher<PT, SCT, RT, ?>> myOwnedSearchers; /* 包括当前搜索参数子级的和所有继承的父级搜索参数的搜索器 */
-	
-	Map<ParameterField<PT, SCT, RT>, PT> myDynamicJoinedParams;
 	
 	/**
 	 * 
@@ -336,9 +336,11 @@ extends SearchContentSource<SCT> {
 		ParameterField<PT, SCT, RT> fromParamField = this.paramContext
 				.getIndeedSearchParameterField(fromSearcher.belongParameterField);
 		ParameterField<PT, SCT, RT> toParamField = param.paramContext
-				.getIndeedSearchParameterField(fromSearcher.belongParameterField);
+				.getIndeedSearchParameterField(toSearcher.belongParameterField);
 		PT fromParam = fromParamField.belongParameter;
 		PT toParam = toParamField.belongParameter;
+		// 重新动态关联的搜索参数的表别名
+		toParam.paramContext.generateGlobalNonConflictTableAlias(this.paramContext.joinCounter);
 		// 缓存动态关联的搜索参数和原来的搜索参数上下文(包括了搜索上下文)
 		if(this.paramContext.dynamicJoinParamContextPool == null) {
 			this.paramContext.dynamicJoinParamContextPool = new HashMap<PT, ParameterContext<PT,SCT,RT>>();
@@ -350,33 +352,62 @@ extends SearchContentSource<SCT> {
 		}
 		fromParam.myDynamicJoinedParams.put(fromParamField, toParam);
 		// 重置动态关联搜索参数方的搜索参数上下文
+		toParam.paramContext.realDynamicJoinParam = toParam;
 		for(PT toIncludeParam : toParam.paramContext.allParams) {
 			toIncludeParam.paramContext = this.paramContext;
 		}
 		// 反转最短关联路径的关联关系
 		JoinWorker<PT, SCT, RT> joinWorker = JoinWorker.build(fromParam, toParam, joinType, relationType,
 				fromParamField, toParamField);
-		toParam.usingJoinWorker = joinWorker;
 		toParam.paramContext.reverseParametersJoinDirection(toParam, param, joinWorker);
 	}
 
 	/**
-	 * 被动态关联的搜索参数解绑动态关联
+	 * 
+	 * @return
 	 * 
 	 * @author linjie
 	 * @since 1.0.1
 	 */
-	public final void unJoin() {
+	public final Collection<PT> getDynamicJoinedParameter(String fromFieldPath) {
+		this.assertHasInit();
+		return null;
+	}
+	
+	/**
+	 * 被动态关联的搜索参数解绑动态关联
+	 * <br/> 会重置被动态关联的搜索参数在关联期间进行添加的搜索内容
+	 * 
+	 * @param args 重置搜索参数可选自定义参数, 可以没有
+	 * 
+	 * @author linjie
+	 * @since 1.0.1
+	 */
+	public final void unJoin(Object...args) throws Exception {
 		if(! this.paramContext.dynamicJoinParamContextPool.containsKey(this)) {
 			throw new IllegalArgumentException("当前搜索参数不是动态关联搜索参数");
 		}
 		ParameterContext<PT, SCT, RT> originalParamContext = this.paramContext.dynamicJoinParamContextPool.get(this);
-		// 重置动态关联搜索参数方的搜索参数上下文
+		this.paramContext.dynamicJoinParamContextPool.remove(this);
+		// 重置动态关联搜索参数树包含的搜索参数上下文和搜索内容
 		for(PT param : originalParamContext.allParams) {
+			// 回调自定义实现方法
+			param.onReset(args);
+			// 重置搜素参数字段(包括重置搜索内容)
+			for(ParameterField<PT, SCT, RT> paramField : param.myParameterFields.values()) {
+				paramField.reset();
+			}
+			// 重置关联搜索内容
+			if(param.usingJoinWorker != null) {
+				param.usingJoinWorker.cancelJoinWork(false); /* 被动态关联的搜索参数不会再动态关联 */
+			}
+			// 重置使用的搜索参数上下文
 			param.paramContext = originalParamContext;
 		}
 		// 恢复最短关联路径的关联关系
-		originalParamContext.reverseParametersJoinDirection(null, null, null);
+		originalParamContext.reverseParametersJoinDirection(originalParamContext.realDynamicJoinParam,
+				originalParamContext.rootParam, null);
+		originalParamContext.realDynamicJoinParam = null;
 	}
 	
 	/**
@@ -606,9 +637,9 @@ extends SearchContentSource<SCT> {
 	 */
 	public final RT build(Object...args) throws Exception {
 		this.assertHasInit();
-		// 根搜索参数才能构建结果
-		if(this.paramType != ParameterType.ROOT) {
-			throw new IllegalAccessException("根搜索参数才可以进行结果构建!");
+		// 根搜索参数/非动态搜索参数才能构建结果
+		if(this.paramType != ParameterType.ROOT || this.usingJoinWorker != null) {
+			throw new IllegalArgumentException("非根搜索参数或被动态关联的搜索参数不能进行结果构建!");
 		}
 		// 检查分界符有没有成对出现
 		if(this.paramContext.delimiterEndCount != this.paramContext.delimiterStartCount) {
@@ -630,11 +661,27 @@ extends SearchContentSource<SCT> {
 	 */
 	public final void reset(Object...args) throws Exception {
 		this.assertHasInit();
-		if(this.paramType != ParameterType.ROOT) {
-			throw new IllegalAccessException("根搜索参数才可以进行重置!");
+		if(this.paramType != ParameterType.ROOT || this.usingJoinWorker != null) {
+			throw new IllegalArgumentException("非根搜索参数或被动态关联的搜索参数不能进行重置!");
 		}
 		// 回调自定义实现方法
 		this.onReset(args);
+		// 清空搜索内容
+		this.paramContext.getCurrentSearchContext().clear();
+		// 重置搜素参数字段(重置搜索内容发现全没了就不会处理)
+		for(ParameterField<PT, SCT, RT> paramField : this.paramContext.allParamFields) {
+			paramField.reset();
+		}
+		// 重置动态关联搜索内容
+		for(PT param : this.paramContext.dynamicJoinParamContextPool.keySet()) {
+			param.unJoin(args);
+		}
+		// 重置关联搜索内容(关联搜索内容已经没有了)
+		for(PT param : this.paramContext.allParams) {
+			if(param.usingJoinWorker != null) {
+				param.usingJoinWorker.hasJoin = false;
+			}
+		}
 	}
 	
 	/**

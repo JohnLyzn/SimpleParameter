@@ -38,8 +38,6 @@ implements IInitializor<PT, SCT, RT> {
 	
 	private Map<Class<?>, ITransformable<?>> fieldTransformer;
 	
-	private List<Class<PT>> meetBeforeParamClasses = new LinkedList<Class<PT>>();
-	
 	/**
 	 * 
 	 * @param fieldTransformer
@@ -69,13 +67,14 @@ implements IInitializor<PT, SCT, RT> {
 	/**
 	 * {@inheritDoc}
 	 * @param args 依次是[搜索器类字节码(不为null), 搜索参数实现基类字节码(不为null),
-	 * 		 当前初始化的搜索参数类字节码(可以为null), 用来设置属性的搜索参数实例(可以为null)]
+	 * 		 当前初始化的搜索参数类字节码(可以为null), 用来设置属性的搜索参数实例(可以为null),
+	 * 		存放当前搜索参数树中已初始化化过的搜索参数字节码容器(可以为null)]
 	 */
 	@Override
 	public void initParameter(PT param, ParameterContext<PT, SCT, RT> paramContext,
 			Object...args) throws Exception {
 		// 需要额外参数: 搜索器实现类类字节码
-		if(args == null || args.length != 4) {
+		if(args == null || args.length != 5) {
 			throw new IllegalArgumentException("注解方式初始化搜索参数需要参数[搜索器类字节码(不为null), 搜索参数实现基类字节码(不为null),"
 					+ " 当前初始化的搜索参数类字节码(可以为null), 用来设置属性的搜索参数实例(可以为null)]");
 		}
@@ -89,6 +88,10 @@ implements IInitializor<PT, SCT, RT> {
 		if(setFieldParam == null) {
 			setFieldParam = param;
 		}
+		List<Class<PT>> meetBeforeParamClasses = (List<Class<PT>>) args[4];
+		if(meetBeforeParamClasses == null) {
+			meetBeforeParamClasses = new LinkedList<Class<PT>>(); 
+		}
 		// 获取父级的搜索参数, 如果父级搜索参数具有@TableMeta且当前搜索参数没有@InheritMeta则抛出异常
 		Class<?> superClass = paramClass.getSuperclass();
 		boolean thisHasInheriteConfig = paramClass.isAnnotationPresent(InheritMeta.class);
@@ -100,7 +103,13 @@ implements IInitializor<PT, SCT, RT> {
 		// 如果是继承型搜索参数先对继承的搜索参数进行初始化
 		if(thisHasInheriteConfig && parentHasTableConfig) {
 			// 验证环关联, 不然死循环
-			this.assertHasNotJoinedBefore((Class<PT>) superClass);
+			if(meetBeforeParamClasses.contains(superClass)) {
+				throw new IllegalArgumentException(format(
+						"搜索参数%s与搜索参数%s存在关联环的关系, 目前不支持此种关系的搜索参数初始化, 请重新设置. PS: 可以考虑使用动态关联.", 
+						this.getClass().getName(), paramClass.getName()));
+			}
+			// 不存在的加入到已经遇过的列表中
+			meetBeforeParamClasses.add((Class<PT>) superClass);
 			// 继承关联注解配置
 			InheritMeta inheritMeta = paramClass.getAnnotation(InheritMeta.class);
 			String inheritByName = inheritMeta.inheritBy();
@@ -114,7 +123,8 @@ implements IInitializor<PT, SCT, RT> {
 			paramContext.registerInheritJoinedParameter(param, inheritJoinedParam,
 					inheritMeta.joinType(), inheritMeta.relationType(),
 					inheritFromFieldName, inheritByName,
-					searcherClass, basicParamClass, superClass, param); /* 用来设置实例字段的值不是父类, 而是最后的子类 */
+					searcherClass, basicParamClass, superClass, param, meetBeforeParamClasses); 
+			/* 用来设置实例字段的值不是父类, 而是最后的子类 */
 		}
 		// 初始化当前搜索参数中的搜索器或默认搜索参数成员
 		if(paramClass.isAnnotationPresent(TableMeta.class)) { /* 初始化表信息 */
@@ -168,7 +178,13 @@ implements IInitializor<PT, SCT, RT> {
 						// 为搜索参数类型的类属性初始化为默认关联搜索参数
 						if(field.isAnnotationPresent(JoinParam.class) && field.isAnnotationPresent(FieldMeta.class)) {
 							// 验证环关联, 不然死循环
-							this.assertHasNotJoinedBefore((Class<PT>) typeClass);
+							if(meetBeforeParamClasses.contains(paramClass)) {
+								throw new IllegalArgumentException(format(
+										"搜索参数%s与搜索参数%s存在关联环的关系, 目前不支持此种关系的搜索参数初始化, 请重新设置. PS: 可以考虑使用动态关联.", 
+										this.getClass().getName(), paramClass.getName()));
+							}
+							// 不存在的加入到已经遇过的列表中
+							meetBeforeParamClasses.add(paramClass);
 							// 初始化默认关联搜索参数
 							FieldMeta fieldMeta = field.getAnnotation(FieldMeta.class);
 							ParameterField<PT, SCT, RT> paramField = new ParameterField<PT, SCT, RT>(); /* 这个关联字段是数据 */
@@ -180,7 +196,7 @@ implements IInitializor<PT, SCT, RT> {
 							paramContext.registerDefaultJoinedParameter(param, defaultJoinedParam,
 									joinParam.joinType(), joinParam.relationType(),
 									fieldName, joinParam.mappedBy(),
-									searcherClass, basicParamClass, typeClass, defaultJoinedParam);
+									searcherClass, basicParamClass, typeClass, defaultJoinedParam, meetBeforeParamClasses);
 							// 设置搜索参数成员属性的值
 							field.set(setFieldParam, defaultJoinedParam);
 						} else {
@@ -215,24 +231,5 @@ implements IInitializor<PT, SCT, RT> {
 	@Override
 	public void initSearcher(AbsSearcher<PT, SCT, RT, ?> searcher, Object... args) throws Exception {
 		
-	}
-	
-	/**
-	 * 测试指定关联搜索参数是否为前代搜索参数, 是则抛出异常终止初始化, 防止出现关联环导致死循环
-	 * 
-	 * @param paramClass 要测试的搜索参数的字节码
-	 * @throws IllegalArgumentException 如果存在关联环则抛出异常
-	 *
-	 * @author linjie
-	 * @since 1.0.1
-	 */
-	private void assertHasNotJoinedBefore(Class<PT> paramClass) {
-		if(meetBeforeParamClasses.contains(paramClass)) {
-			throw new IllegalArgumentException(format(
-					"搜索参数%s与搜索参数%s存在关联环的关系, 目前不支持此种关系的搜索参数初始化, 请重新设置. PS: 可以考虑使用动态关联.", 
-					this.getClass().getName(), paramClass.getName()));
-		}
-		// 不存在的加入到已经遇过的列表中
-		this.meetBeforeParamClasses.add(paramClass);
 	}
 }

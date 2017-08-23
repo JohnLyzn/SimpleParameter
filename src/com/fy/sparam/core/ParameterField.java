@@ -328,6 +328,7 @@ public final class ParameterField<PT extends AbsParameter<PT, SCT, RT>, SCT, RT>
 	 * @since 1.0.1
 	 */
 	void reset() throws Exception {
+		// 重置所有标志位相关的
 		this.isOrderBy = false;
 		this.isAsc = false;
 		this.orderByPriority = 0;
@@ -335,5 +336,10 @@ public final class ParameterField<PT extends AbsParameter<PT, SCT, RT>, SCT, RT>
 		this.groupByPriority = 0;
 		this.isOutput = false;
 		this.isSearched = false;
+		// 还原相关的搜索内容, 如果有
+		if(this.usingSearcher != null) {
+			this.belongParameter.paramContext.getCurrentSearchContext()
+				.removeSearchEntryBySource(this.usingSearcher);
+		}
 	}
 }

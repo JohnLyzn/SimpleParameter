@@ -1,29 +1,20 @@
 package com.fy.sparam.test;
 
-import com.fy.sparam.core.SearchContext.ISearchable;
 import com.fy.sparam.product.SqlParameter;
 
 public class Test {
 
 	public static void main(String[] args) throws Exception {
 		OrderParameter param = SqlParameter.getParameter(OrderParameter.class);
-		param.customer.createDate.setOutput(true);
+		OrderParameter param1 = SqlParameter.getParameter(OrderParameter.class);
+		param.join(param1, null, null, param.customer.wtbUserID, param1.orderNumber);
+		param1.customer.wtbAccount.setOutput(true);
 		System.out.println(param.build().getSql());
+		param1.unJoin();
+		System.out.println(param.build().getSql());
+		System.out.println(param1.build().getSql());
+		param.reset();
+		System.out.println(param1.build().getSql());
+		// TODO 获取动态关联搜索参数
 	}
-
-//	ITransformable<String> a = new ITransformable<String>() {
-//
-//		@Override
-//		public String strToTarget(String str) throws Exception {
-//			// TODO Auto-generated method stub
-//			return null;
-//		}
-//
-//		@Override
-//		public String targetToStr(String obj) throws Exception {
-//			// TODO Auto-generated method stub
-//			return null;
-//		}
-//		
-//	};
 }
