@@ -23,7 +23,7 @@ import com.fy.sparam.util.StringUtils;
  */
 public abstract class AbsSearcher<PT extends AbsParameter<PT, SCT, RT>, SCT, RT, T> 
 extends SearchContentSource<SCT>
-implements ISearchable<T>, IRelationalable<T>  {
+implements ISearchable<T>, IRelationalable<T>, Cloneable {
 
 	PT belongParameter;
 	ParameterField<PT, SCT, RT> belongParameterField;
@@ -261,7 +261,7 @@ implements ISearchable<T>, IRelationalable<T>  {
 		this.belongParameter.hasFieldSearched = isAllFieldNotSearched;
 		// 尝试回滚, 减少多余关联搜索内容
 		if(this.belongParameter.usingJoinWorker != null) {
-			this.belongParameter.usingJoinWorker.cancelJoinWork(true);
+			this.belongParameter.usingJoinWorker.cancelJoinWork(false, true);
 		}
 	}
 	
@@ -385,7 +385,8 @@ implements ISearchable<T>, IRelationalable<T>  {
 	 */
 	@Override
 	public final String toString() {
-		return StringUtils.concat("SEARCHER:", this.belongParameterField.fieldPath);
+		return StringUtils.concat(super.toString(), " WITH PATH ", this.belongParameterField.fieldPath);
+	
 	}
 	
 	/**
@@ -443,7 +444,7 @@ implements ISearchable<T>, IRelationalable<T>  {
 	}
 
 	@Override
-	protected List<SCT> getSearchEntry(String key) throws Exception {
+	protected final List<SCT> getSearchEntry(String key) throws Exception {
 		SearchContext<PT, SCT, RT> usingSearchContext = this.belongParameter.paramContext.getCurrentSearchContext();
 		return usingSearchContext.getSearchEntry(key);
 	}
@@ -452,6 +453,23 @@ implements ISearchable<T>, IRelationalable<T>  {
 	protected final void clearSearchEntry(String key) throws Exception {
 		SearchContext<PT, SCT, RT> usingSearchContext = this.belongParameter.paramContext.getCurrentSearchContext();
 		usingSearchContext.clearSearchEntry(key);
+	}
+	
+	/**
+	 * 克隆一个搜索器, 重置相关引用信息
+	 * 
+	 * @throws CloneNotSupportedException
+	 *
+	 * @author linjie
+	 * @since 1.0.1
+	 */
+	@Override
+	@SuppressWarnings("unchecked")
+	protected final AbsSearcher<PT, SCT, RT, T> clone() throws CloneNotSupportedException {
+		AbsSearcher<PT, SCT, RT, T> cloneSearcher = (AbsSearcher<PT, SCT, RT, T>) super.clone();
+		cloneSearcher.belongParameter = null;
+		cloneSearcher.belongParameterField = null;
+		return cloneSearcher;
 	}
 	
 	/**

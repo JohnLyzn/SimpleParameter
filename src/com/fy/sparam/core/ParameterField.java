@@ -15,7 +15,8 @@ import com.fy.sparam.util.StringUtils;
  * @author lyzn
  * @since 1.0.1
  */
-public final class ParameterField<PT extends AbsParameter<PT, SCT, RT>, SCT, RT> {
+public final class ParameterField<PT extends AbsParameter<PT, SCT, RT>, SCT, RT>
+implements Cloneable {
 
 	/**
 	 * 字段名称
@@ -310,14 +311,14 @@ public final class ParameterField<PT extends AbsParameter<PT, SCT, RT>, SCT, RT>
 	/**
 	 * 重写toString方法
 	 * 
-	 * @return 所属搜索参数类名称 : 字段名称
+	 * @return 字段路径
 	 * 
 	 * @author linjie
 	 * @since 1.0.1
 	 */
 	@Override
-	public String toString() {
-		return StringUtils.concat(this.belongParameter.getClass().getSimpleName(), ":", this.fieldName);
+	public final String toString() {
+		return StringUtils.concat(super.toString(), " WITH PATH ", this.fieldPath);
 	}
 	
 	/**
@@ -341,5 +342,33 @@ public final class ParameterField<PT extends AbsParameter<PT, SCT, RT>, SCT, RT>
 			this.belongParameter.paramContext.getCurrentSearchContext()
 				.removeSearchEntryBySource(this.usingSearcher);
 		}
+	}
+	
+	/**
+	 * 克隆一个搜索参数字段, 重置相关引用信息
+	 * 
+	 * @author linjie
+	 * @since 1.0.1
+	 */
+	@Override
+	@SuppressWarnings("unchecked")
+	protected ParameterField<PT, SCT, RT> clone() throws CloneNotSupportedException {
+		ParameterField<PT, SCT, RT> cloneParamField = (ParameterField<PT, SCT, RT>) super.clone();
+		/* 重用字段信息 */
+		cloneParamField.isOrderBy = false;
+		cloneParamField.isAsc = false;
+		cloneParamField.orderByPriority = 0;
+		cloneParamField.isGroupBy = false;
+		cloneParamField.groupByPriority = 0;
+		cloneParamField.isOutput = false;
+		cloneParamField.isSearched = false;
+		cloneParamField.usingSearcher = null;
+		cloneParamField.belongParameter = null;
+		cloneParamField.isMappedFromField = false;
+		if(this.extraInfo != null && ! this.extraInfo.isEmpty()) {
+			cloneParamField.extraInfo = new HashMap<String, Object>();
+			cloneParamField.extraInfo.putAll(this.extraInfo);
+		}
+		return cloneParamField;
 	}
 }

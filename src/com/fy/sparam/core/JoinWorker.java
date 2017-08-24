@@ -152,13 +152,14 @@ public final class JoinWorker<PT extends AbsParameter<PT, SCT, RT>, SCT, RT> {
 	
 	/**
 	 * 
+	 * @param isForce 是否强制清除掉搜索参数字段使用的搜索器产生的搜索内容, 这样不会因为字段被搜索或输出而退出
 	 * @param isNeedjudgeReachable
 	 * @throws Exception
 	 * 
 	 * @author linjie
 	 * @since 1.0.1
 	 */
-	final void cancelJoinWork(boolean isNeedjudgeReachable) throws Exception {
+	final void cancelJoinWork(boolean isForce, boolean isNeedjudgeReachable) throws Exception {
 		if(this.hasJoin) {
 			// 遍历一遍搜索参数字段没有输出且没有被搜索, 则需要重置关联信息
 			Collection<ParameterField<PT, SCT, RT>> judgeParamFields = null;
@@ -170,9 +171,14 @@ public final class JoinWorker<PT extends AbsParameter<PT, SCT, RT>, SCT, RT> {
 				judgeParamFields = this.mappedParam.myParameterFields.values();
 			}
 			for(ParameterField<PT, SCT, RT> paramField : judgeParamFields) {
-				if(paramField.isOutput || paramField.isSearched) {
-					// 如果有非搜索参数类型字段输出或者被搜索了, 直接退出
-					return;
+				if(! isForce) {
+					if(paramField.isOutput || paramField.isSearched) {
+						// 如果有非搜索参数类型字段输出或者被搜索了, 直接退出
+						return;
+					}
+				} else {
+					// 直接重置字段
+					paramField.reset();
 				}
 			}
 			// 清理掉对应的关联时添加的搜索内容
@@ -182,7 +188,7 @@ public final class JoinWorker<PT extends AbsParameter<PT, SCT, RT>, SCT, RT> {
 			this.hasJoin = false;
 			// 对关联来源的搜索参数进行此操作(可能是一个隔代字段设置输出导致连接)
 			if(this.mappedFromParam.usingJoinWorker != null) {
-				this.mappedFromParam.usingJoinWorker.cancelJoinWork(false);
+				this.mappedFromParam.usingJoinWorker.cancelJoinWork(false, false);
 			}
 		}
 	}

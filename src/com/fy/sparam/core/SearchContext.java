@@ -598,7 +598,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 	 * @author linjie
 	 * @since 1.0.1
 	 */
-	final static<PT extends AbsParameter<PT, SCT, RT>, SCT, RT> SearchContext<PT, SCT, RT> build()  throws Exception {
+	final static<PT extends AbsParameter<PT, SCT, RT>, SCT, RT> SearchContext<PT, SCT, RT> create()  throws Exception {
 		return new SearchContext<PT, SCT, RT>();
 	}
 	

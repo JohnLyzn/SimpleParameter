@@ -27,7 +27,8 @@ import com.fy.sparam.util.StringUtils;
  * @author linjie
  * @since 1.0.1
  */
-public final class ParameterContext<PT extends AbsParameter<PT, SCT, RT>, SCT, RT> {
+public final class ParameterContext<PT extends AbsParameter<PT, SCT, RT>, SCT, RT>
+implements Cloneable {
 	
 	/**
 	 * 使用的搜索参数对象路径分隔符
@@ -302,7 +303,7 @@ public final class ParameterContext<PT extends AbsParameter<PT, SCT, RT>, SCT, R
 	 */
 	final SearchContext<PT, SCT, RT> getCurrentSearchContext() throws Exception {
 		if(this.usingSearchContext == null) {
-			this.usingSearchContext = SearchContext.build();
+			this.usingSearchContext = SearchContext.create();
 		}
 		return this.usingSearchContext;
 	}
@@ -413,7 +414,7 @@ public final class ParameterContext<PT extends AbsParameter<PT, SCT, RT>, SCT, R
 	 * @author linjie
 	 * @since 1.0.1
 	 */
-	boolean isReachableParameter(PT param) {
+	final boolean isReachableParameter(PT param) {
 		if(this.allParams.contains(param)) {
 			return true;
 		}
@@ -435,7 +436,7 @@ public final class ParameterContext<PT extends AbsParameter<PT, SCT, RT>, SCT, R
 	 * @author linjie
 	 * @since 1.0.1
 	 */
-	boolean isReachableSeacher(AbsSearcher<PT, SCT, RT, ?> searcher) {
+	final boolean isReachableSeacher(AbsSearcher<PT, SCT, RT, ?> searcher) {
 		if(this.allSearchers.contains(searcher)) {
 			return true;
 		}
@@ -624,6 +625,33 @@ public final class ParameterContext<PT extends AbsParameter<PT, SCT, RT>, SCT, R
 			}
 		}
 		return result;
+	}
+	
+	/**
+	 * 克隆一个搜索参数字段, 重置相关引用信息
+	 * 
+	 * @author linjie
+	 * @since 1.0.1
+	 */
+	@Override
+	@SuppressWarnings("unchecked")
+	protected ParameterContext<PT, SCT, RT> clone() throws CloneNotSupportedException {
+		ParameterContext<PT, SCT, RT> cloneParamContext = (ParameterContext<PT, SCT, RT>) super.clone();
+		/* 重用初始化器实例和字段类型转换器缓存, page和count */
+		cloneParamContext.rootParam = null;
+		cloneParamContext.allParams = new HashSet<PT>(); /* 不包括继承和动态关联的 */
+		cloneParamContext.allSearchers = new HashSet<AbsSearcher<PT, SCT, RT, ?>>(); /* 不包括继承和动态关联的 */
+		cloneParamContext.allParamFields = new HashSet<ParameterField<PT, SCT, RT>>(); /* 不包括动态关联的 */
+		cloneParamContext.usingSearchContext = null;
+		cloneParamContext.joinCounter = 0;
+		cloneParamContext.delimiterStartCount = 0;
+		cloneParamContext.delimiterEndCount = 0;
+		cloneParamContext.isAutoAddRelation = false; 
+		cloneParamContext.isAutoAddAnd = true;
+		cloneParamContext.relationalCheckFlag = true;
+		cloneParamContext.dynamicJoinParamContextPool = null;
+		cloneParamContext.realDynamicJoinParam = null;
+		return cloneParamContext;
 	}
 	
 	/**
