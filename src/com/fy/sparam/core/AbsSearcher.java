@@ -28,12 +28,15 @@ implements ISearchable<T>, IRelationalable<T>, Cloneable {
 
 	PT belongParameter;
 	ParameterField<PT, SCT, RT> belongParameterField;
+	boolean isNeedRelationCheck;
 	
 	@Override
 	public final <RPT extends AbsParameter<?, ?, ?>> RPT and(RPT param) throws Exception {
 		if(! this.belongParameter.paramContext.relationalCheckFlag) {
 			this.belongParameter.paramContext.relationalCheckFlag = true;
+			this.isNeedRelationCheck = false;
 			this.onAnd();
+			this.isNeedRelationCheck = true;
 		}
 		return param;
 	}
@@ -42,21 +45,27 @@ implements ISearchable<T>, IRelationalable<T>, Cloneable {
 	public final <RPT extends AbsParameter<?, ?, ?>> RPT or(RPT param) throws Exception {
 		if(! this.belongParameter.paramContext.relationalCheckFlag) {
 			this.belongParameter.paramContext.relationalCheckFlag = true;
+			this.isNeedRelationCheck = false;
 			this.onOr();
+			this.isNeedRelationCheck = true;
 		}
 		return param;
 	}
 
 	@Override
 	public final IRelationalable<T> ds(Object... params) throws Exception {
+		this.isNeedRelationCheck = false;
 		this.onDelimiterStart(params);
+		this.isNeedRelationCheck = true;
 		this.belongParameter.paramContext.delimiterStartCount ++;
 		return this;
 	}
 
 	@Override
 	public final IRelationalable<T> de(Object... params) throws Exception {
+		this.isNeedRelationCheck = false;
 		this.onDelimiterEnd(params);
+		this.isNeedRelationCheck = true;
 		this.belongParameter.paramContext.delimiterEndCount ++;
 		return this;
 	}
@@ -424,22 +433,24 @@ implements ISearchable<T>, IRelationalable<T>, Cloneable {
 	
 	@Override
 	protected final void addSearchEntry(String key, SCT searchContent) throws Exception {
-		boolean realtionalFlag = this.belongParameter.paramContext.relationalCheckFlag;
-		if(! realtionalFlag) { /* 前面添加了搜索器的搜索内容 */
-			// 如果没有开启自动追加逻辑关系, 在没有确定搜索内容间逻辑关系情况下则报错
-			if(! this.belongParameter.paramContext.isAutoAddRelation) {
-				throw new IllegalArgumentException("上一个条件和当前条件没有确定逻辑关系, 请在上一个条件的末尾调用and或or方法,"
-						+ " 或使用搜索参数的above.and或or方法确定条件间的逻辑关系!");
+		if(this.isNeedRelationCheck) {
+			boolean realtionalFlag = this.belongParameter.paramContext.relationalCheckFlag;
+			if(! realtionalFlag) { /* 前面添加了搜索器的搜索内容 */
+				// 如果没有开启自动追加逻辑关系, 在没有确定搜索内容间逻辑关系情况下则报错
+				if(! this.belongParameter.paramContext.isAutoAddRelation) {
+					throw new IllegalArgumentException("上一个条件和当前条件没有确定逻辑关系, 请在上一个条件的末尾调用and或or方法,"
+							+ " 或使用搜索参数的above.and或or方法确定条件间的逻辑关系!");
+				}
+				// 开启自动追加逻辑关系
+				if(this.belongParameter.paramContext.isAutoAddAnd) {
+					this.onAnd();
+				} else {
+					this.onOr();
+				}
 			}
-			// 开启自动追加逻辑关系
-			if(this.belongParameter.paramContext.isAutoAddAnd) {
-				this.onAnd();
-			} else {
-				this.onOr();
-			}
+			// 设置逻辑关系标记为false, 连续两次调用当前方法且无自动追加逻辑关系情况下会报错
+			this.belongParameter.paramContext.relationalCheckFlag = false;
 		}
-		// 设置逻辑关系标记为false, 连续两次调用当前方法且无自动追加逻辑关系情况下会报错
-		this.belongParameter.paramContext.relationalCheckFlag = false;
 		// 添加搜索内容到搜索上下文
 		SearchContext<PT, SCT, RT> usingSearchContext = this.belongParameter.paramContext.getCurrentSearchContext();
 		usingSearchContext.addSearchEntry(this, key, searchContent);

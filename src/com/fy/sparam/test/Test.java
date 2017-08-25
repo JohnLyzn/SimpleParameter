@@ -31,7 +31,7 @@ public class Test {
 		
 		CustomerParameter cParam = SqlParameter.getParameter(CustomerParameter.class);
 //		CustomerParameter cParam1 = (CustomerParameter) cParam.clone();
-		cParam.email.eq("1");
+		cParam.email.eq("1").and(cParam);
 		System.out.println(cParam.build().getSql());
 	}
 }
