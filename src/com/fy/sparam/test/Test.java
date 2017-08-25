@@ -23,7 +23,13 @@ public class Test {
 		long start = System.nanoTime();
 		OrderParameter param1 = (OrderParameter) param.clone();
 		System.out.println(param1.build().getSql());
+		System.out.println(param.build().getSql());
+		param.reset();
+		System.out.println(param.build().getSql());
 		System.out.println(System.nanoTime() - start);
-		// TODO 设置搜索器实例到搜索参数实例类属性中
+		// TODO 所有注释
+		
+//		CustomerParameter cParam = SqlParameter.getParameter(CustomerParameter.class);
+//		CustomerParameter cParam1 = (CustomerParameter) cParam.clone();
 	}
 }

@@ -16,10 +16,11 @@ import com.fy.sparam.util.StringUtils;
  * 
  * @param <PT>　搜索参数类类型
  * @param <SCT>　搜索内容类类型
+ * @param <RT>　搜索结果类类型
  * @param <T>　源字段类类型
  * 
  * @author linjie
- * @since 1.0.1
+ * @since 1.0.2
  */
 public abstract class AbsSearcher<PT extends AbsParameter<PT, SCT, RT>, SCT, RT, T> 
 extends SearchContentSource<SCT>
@@ -358,7 +359,7 @@ implements ISearchable<T>, IRelationalable<T>, Cloneable {
 	 * @return
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	public final PT getBelongParameter() {
 		return belongParameter;
@@ -369,7 +370,7 @@ implements ISearchable<T>, IRelationalable<T>, Cloneable {
 	 * @return
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	public final ParameterField<PT, SCT, RT> getBelongParameterField() {
 		return belongParameterField;
@@ -381,7 +382,7 @@ implements ISearchable<T>, IRelationalable<T>, Cloneable {
 	 * @return SEARCHER-所属搜索参数类名称 : 字段名称
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	@Override
 	public final String toString() {
@@ -390,11 +391,12 @@ implements ISearchable<T>, IRelationalable<T>, Cloneable {
 	}
 	
 	/**
+	 * 获取最少关联信息的搜索参数字段
 	 * 
-	 * @return
+	 * @return 最少关联信息的搜索参数字段
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	final ParameterField<PT, SCT, RT> getSearchParameterField() {
 		return this.belongParameter.paramContext.getIndeedSearchParameterField(this.belongParameterField);
@@ -405,7 +407,7 @@ implements ISearchable<T>, IRelationalable<T>, Cloneable {
 	 * <br/> 进行关联冗余减少处理, 即对搜索信息所属的搜索参数触发关联操作
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	final ParameterField<PT, SCT, RT> preparingDoSearch() throws Exception {
 		ParameterField<PT, SCT, RT> searchParamField = this.getSearchParameterField();
@@ -461,7 +463,7 @@ implements ISearchable<T>, IRelationalable<T>, Cloneable {
 	 * @throws CloneNotSupportedException
 	 *
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	@Override
 	@SuppressWarnings("unchecked")
@@ -478,7 +480,7 @@ implements ISearchable<T>, IRelationalable<T>, Cloneable {
 	 * @throws Exception
 	 *
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	protected abstract void onEq(T value) throws Exception;
 
@@ -488,7 +490,7 @@ implements ISearchable<T>, IRelationalable<T>, Cloneable {
 	 * @throws Exception
 	 *
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	protected abstract void onEq(ISearchable<?> searchField) throws Exception;
 
@@ -498,7 +500,7 @@ implements ISearchable<T>, IRelationalable<T>, Cloneable {
 	 * @throws Exception
 	 *
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	protected abstract void onNotEq(T value) throws Exception;
 	
@@ -508,7 +510,7 @@ implements ISearchable<T>, IRelationalable<T>, Cloneable {
 	 * @throws Exception
 	 *
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	protected abstract void onNotEq(ISearchable<?> searchField) throws Exception;
 
@@ -518,7 +520,7 @@ implements ISearchable<T>, IRelationalable<T>, Cloneable {
 	 * @throws Exception
 	 *
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	protected abstract void onIn(Collection<T> values) throws Exception;
 	
@@ -528,7 +530,7 @@ implements ISearchable<T>, IRelationalable<T>, Cloneable {
 	 * @throws Exception
 	 *
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	protected abstract void onIn(ISearchable<?> searchField) throws Exception;
 
@@ -538,7 +540,7 @@ implements ISearchable<T>, IRelationalable<T>, Cloneable {
 	 * @throws Exception
 	 *
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	protected abstract void onNotIn(Collection<T> values) throws Exception;
 
@@ -548,7 +550,7 @@ implements ISearchable<T>, IRelationalable<T>, Cloneable {
 	 * @throws Exception
 	 *
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	protected abstract void onNotIn(ISearchable<?> searchField) throws Exception;
 
@@ -558,7 +560,7 @@ implements ISearchable<T>, IRelationalable<T>, Cloneable {
 	 * @throws Exception
 	 *
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	protected abstract void onBetween(T from, T to) throws Exception;
 
@@ -568,7 +570,7 @@ implements ISearchable<T>, IRelationalable<T>, Cloneable {
 	 * @throws Exception
 	 *
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	protected abstract void onBetween(ISearchable<?> from, ISearchable<?> to)
 			throws Exception;
@@ -579,7 +581,7 @@ implements ISearchable<T>, IRelationalable<T>, Cloneable {
 	 * @throws Exception
 	 *
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	protected abstract void onLessThan(T value) throws Exception;
 
@@ -589,7 +591,7 @@ implements ISearchable<T>, IRelationalable<T>, Cloneable {
 	 * @throws Exception
 	 *
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	protected abstract void onLessThan(ISearchable<?> searchField) throws Exception;
 
@@ -599,7 +601,7 @@ implements ISearchable<T>, IRelationalable<T>, Cloneable {
 	 * @throws Exception
 	 *
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	protected abstract void onNotLessThan(T value) throws Exception;
 
@@ -609,7 +611,7 @@ implements ISearchable<T>, IRelationalable<T>, Cloneable {
 	 * @throws Exception
 	 *
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	protected abstract void onNotLessThan(ISearchable<?> searchField)
 			throws Exception;
@@ -620,7 +622,7 @@ implements ISearchable<T>, IRelationalable<T>, Cloneable {
 	 * @throws Exception
 	 *
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	protected abstract void onGreaterThan(T value) throws Exception;
 
@@ -630,7 +632,7 @@ implements ISearchable<T>, IRelationalable<T>, Cloneable {
 	 * @throws Exception
 	 *
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	protected abstract void onGreaterThan(ISearchable<?> searchField)
 			throws Exception;
@@ -641,7 +643,7 @@ implements ISearchable<T>, IRelationalable<T>, Cloneable {
 	 * @throws Exception
 	 *
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	protected abstract void onNotGreaterThan(T value) throws Exception;
 
@@ -651,7 +653,7 @@ implements ISearchable<T>, IRelationalable<T>, Cloneable {
 	 * @throws Exception
 	 *
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	protected abstract void onNotGreaterThan(ISearchable<?> searchField)
 			throws Exception;
@@ -662,7 +664,7 @@ implements ISearchable<T>, IRelationalable<T>, Cloneable {
 	 * @throws Exception
 	 *
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	protected abstract void onLike(String value) throws Exception;
 
@@ -672,7 +674,7 @@ implements ISearchable<T>, IRelationalable<T>, Cloneable {
 	 * @throws Exception
 	 *
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	protected abstract void onLike(ISearchable<?> searchField) throws Exception;
 	
@@ -682,7 +684,7 @@ implements ISearchable<T>, IRelationalable<T>, Cloneable {
 	 * @throws Exception
 	 *
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	protected abstract void onNotLike(String value) throws Exception;
 
@@ -692,7 +694,7 @@ implements ISearchable<T>, IRelationalable<T>, Cloneable {
 	 * @throws Exception
 	 *
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	protected abstract void onNotLike(ISearchable<?> searchField) throws Exception;
 
@@ -702,7 +704,7 @@ implements ISearchable<T>, IRelationalable<T>, Cloneable {
 	 * @throws Exception
 	 *
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	protected abstract void onIsNull() throws Exception;
 
@@ -712,7 +714,7 @@ implements ISearchable<T>, IRelationalable<T>, Cloneable {
 	 * @throws Exception
 	 *
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	protected abstract void onIsNotNull() throws Exception;
 
@@ -722,7 +724,7 @@ implements ISearchable<T>, IRelationalable<T>, Cloneable {
 	 * @throws Exception
 	 *
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	protected abstract void onInChildQuery(PT childQuery) throws Exception;
 
@@ -732,7 +734,7 @@ implements ISearchable<T>, IRelationalable<T>, Cloneable {
 	 * @throws Exception
 	 *
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	protected abstract void onNotInChildQuery(PT childQuery) throws Exception;
 
@@ -742,7 +744,7 @@ implements ISearchable<T>, IRelationalable<T>, Cloneable {
 	 * @throws Exception
 	 *
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	protected abstract void onAnd() throws Exception;
 	
@@ -752,7 +754,7 @@ implements ISearchable<T>, IRelationalable<T>, Cloneable {
 	 * @throws Exception
 	 *
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	protected abstract void onOr() throws Exception;
 	
@@ -763,7 +765,7 @@ implements ISearchable<T>, IRelationalable<T>, Cloneable {
 	 * @throws Exception
 	 *
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	protected abstract void onDelimiterStart(Object... params) throws Exception;
 	
@@ -774,7 +776,7 @@ implements ISearchable<T>, IRelationalable<T>, Cloneable {
 	 * @throws Exception
 	 *
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	protected abstract void onDelimiterEnd(Object... params) throws Exception;
 	
@@ -785,7 +787,7 @@ implements ISearchable<T>, IRelationalable<T>, Cloneable {
 	 * @throws Exception 需要则抛出异常
 	 *
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	protected void onMarkGroupBy(Integer priority) throws Exception {}
 	
@@ -797,7 +799,7 @@ implements ISearchable<T>, IRelationalable<T>, Cloneable {
 	 * @throws Exception 需要则抛出异常
 	 *
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	protected void onMarkOrderBy(Integer priority, Boolean isAsc) throws Exception {}
 	
@@ -808,7 +810,7 @@ implements ISearchable<T>, IRelationalable<T>, Cloneable {
 	 * @throws Exception　操作失败则抛出异常
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	protected void onSetOutput(boolean isOuput) throws Exception {}
 }

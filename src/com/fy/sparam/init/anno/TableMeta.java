@@ -10,7 +10,7 @@ import java.lang.annotation.Target;
  * 表的信息配置主键
  *
  * @author linjie
- * @since 1.0.1
+ * @since 1.0.2
  */
 @Documented
 @Target(ElementType.TYPE)
@@ -21,7 +21,7 @@ public @interface TableMeta {
 	 * 表名	
 	 *
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	public String name();
 	
@@ -29,7 +29,7 @@ public @interface TableMeta {
 	 * 表的别名
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	public String alias() default "";
 }

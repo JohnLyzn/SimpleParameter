@@ -6,16 +6,25 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 搜索上下文
+ * 
+ * @param <PT>　搜索参数类类型
+ * @param <SCT>　搜索内容类类型
+ * @param <RT>　搜索结果类类型
+ * 
+ * @author linjie
+ * @since 1.0.2
+ */
 public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 
 	/**
 	 * 搜索操作接口
 	 * 
-	 * @param <PT> 搜索参数类型
 	 * @param <T> 源字段的类型
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	public interface ISearchable<T> {
 
@@ -26,7 +35,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * @throws Exception　操作失败则抛出异常
 		 *
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		IRelationalable<T> eq(T value) throws Exception;
 		
@@ -37,7 +46,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * @throws Exception　操作失败则抛出异常
 		 *
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		IRelationalable<T> eq(ISearchable<?> searchField) throws Exception;
 		
@@ -48,7 +57,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * @throws Exception　操作失败则抛出异常
 		 *
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		IRelationalable<T> notEq(T value) throws Exception;
 		
@@ -59,7 +68,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * @throws Exception　操作失败则抛出异常
 		 *
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		IRelationalable<T> notEq(ISearchable<?> searchField) throws Exception;
 		
@@ -70,7 +79,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * @throws Exception　操作失败则抛出异常
 		 *
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		IRelationalable<T> in(Collection<T> values) throws Exception;
 		
@@ -82,7 +91,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * @throws Exception　操作失败则抛出异常
 		 *
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		IRelationalable<T> in(ISearchable<?> searchField) throws Exception;
 		
@@ -93,7 +102,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * @throws Exception　操作失败则抛出异常
 		 *
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		IRelationalable<T> notIn(Collection<T> values) throws Exception;
 		
@@ -105,7 +114,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * @throws Exception　操作失败则抛出异常
 		 *
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		IRelationalable<T> notIn(ISearchable<?> searchField) throws Exception;
 		
@@ -117,7 +126,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * @throws Exception　操作失败则抛出异常
 		 *
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		IRelationalable<T> between(T from, T to) throws Exception;
 		
@@ -129,7 +138,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * @throws Exception　操作失败则抛出异常
 		 *
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		IRelationalable<T> between(ISearchable<?> from, ISearchable<?> to) throws Exception;
 
@@ -140,7 +149,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * @throws Exception　操作失败则抛出异常
 		 *
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		IRelationalable<T> lessThan(T value) throws Exception;
 		
@@ -151,7 +160,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * @throws Exception　操作失败则抛出异常
 		 *
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		IRelationalable<T> lessThan(ISearchable<?> searchField) throws Exception;
 		
@@ -162,7 +171,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * @throws Exception　操作失败则抛出异常
 		 *
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		IRelationalable<T> notLessThan(T value) throws Exception;
 		
@@ -173,7 +182,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * @throws Exception　操作失败则抛出异常
 		 *
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		IRelationalable<T> notLessThan(ISearchable<?> searchField) throws Exception;
 		
@@ -184,7 +193,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * @throws Exception　操作失败则抛出异常
 		 *
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		IRelationalable<T> greaterThan(T value) throws Exception;
 
@@ -195,7 +204,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * @throws Exception　操作失败则抛出异常
 		 *
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		IRelationalable<T> greaterThan(ISearchable<?> searchField) throws Exception;
 		
@@ -206,7 +215,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * @throws Exception　操作失败则抛出异常
 		 *
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		IRelationalable<T> notGreaterThan(T value) throws Exception;
 
@@ -217,7 +226,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * @throws Exception　操作失败则抛出异常
 		 *
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		IRelationalable<T> notGreaterThan(ISearchable<?> searchField) throws Exception;
 		
@@ -228,7 +237,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * @throws Exception　操作失败则抛出异常
 		 *
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		IRelationalable<T> like(String value) throws Exception;
 		
@@ -239,7 +248,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * @throws Exception　操作失败则抛出异常
 		 *
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		IRelationalable<T> like(ISearchable<?> searchField) throws Exception;
 		
@@ -250,7 +259,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * @throws Exception　操作失败则抛出异常
 		 *
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		IRelationalable<T> notLike(String value) throws Exception;
 		
@@ -261,7 +270,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * @throws Exception　操作失败则抛出异常
 		 *
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		IRelationalable<T> notLike(ISearchable<?> searchField) throws Exception;
 		
@@ -271,7 +280,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * @throws Exception　操作失败则抛出异常
 		 *
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		IRelationalable<T> isNull() throws Exception;
 		
@@ -281,7 +290,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * @throws Exception　操作失败则抛出异常
 		 * 
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		IRelationalable<T> isNotNull() throws Exception;
 
@@ -292,7 +301,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * @throws Exception　操作失败则抛出异常
 		 *
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		IRelationalable<T> inChildQuery(AbsParameter<?, ?, ?> childQuery) throws Exception;
 
@@ -303,7 +312,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * @throws Exception　操作失败则抛出异常
 		 *
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		IRelationalable<T> notInChildQuery(AbsParameter<?, ?, ?> childQuery) throws Exception;
 
@@ -314,7 +323,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * @throws Exception 操作失败则抛出异常
 		 * 
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		void cancelSearch() throws Exception;
 		
@@ -325,7 +334,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * @throws Exception　操作失败则抛出异常
 		 *
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		void markGroupBy(int priority) throws Exception;
 
@@ -337,7 +346,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * @throws Exception　操作失败则抛出异常
 		 *
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		void markOrderBy(int priority, boolean isAsc) throws Exception;
 		
@@ -348,7 +357,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * @throws Exception　操作失败则抛出异常
 		 * 
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		void setOutput(boolean isOutput) throws Exception;
 		
@@ -358,7 +367,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * @throws Exception 获取失败则抛出异常
 		 *
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		String getFieldName() throws Exception;
 		
@@ -368,7 +377,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * @return 对应的搜索参数字段在入口搜索参数中的属性路径
 		 *
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		String getFieldPath() throws Exception;
 		
@@ -381,7 +390,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * @return 经过表别名前缀处理的唯一属性名
 		 * 
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		String getDbTableAliasLocateFieldName() throws Exception;
 		
@@ -391,7 +400,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * @throws Exception 获取失败则抛出异常
 		 *
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		String getDbFieldName() throws Exception;
 		
@@ -401,7 +410,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * @throws Exception
 		 *
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		String getDbFieldAlias() throws Exception;
 		
@@ -414,7 +423,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * @see ParameterField #getWholeDbFieldName()
 		 * 
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		String getWholeDbFieldName() throws Exception;
 		
@@ -425,7 +434,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * @throws Exception 获取失败则抛出异常
 		 * 
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		ITransformable<T> getTransformer() throws Exception;
 		
@@ -437,7 +446,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * @throws Exception 获取失败或存在的类型转换器实现类不是指定的类类型则抛出异常
 		 * 
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		<TT extends ITransformable<T>> TT  getTransformer(Class<TT> realTypeClass) throws Exception;
 	}
@@ -448,7 +457,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 	 * @param <T>　源字段类类型
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	public interface IRelationalable<T> {
 		
@@ -461,7 +470,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * @return 传入的搜索参数的实例, 形成链型调用
 		 *
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		 <PT extends AbsParameter<?, ?, ?>> PT and(PT param) throws Exception;
 		
@@ -474,7 +483,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * @return 传入的搜索参数的实例, 形成链型调用
 		 *
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		 <PT extends AbsParameter<?, ?, ?>> PT or(PT param) throws Exception;
 		 
@@ -482,29 +491,29 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		  * 分割符开始, 比如'('等等, 由搜索器实现类自定义
 		  * <br/> 必须与结束分隔符成对出现
 		  * 
-		  * @param params 可选参数, 由搜索器实现类自定义决定是什么实现
+		  * @param args 可选参数, 由搜索器实现类自定义决定是什么实现
 		  * @return 当前连接器的实例, 形成链型调用, 后必接连接器的中的内容
 		  * 
 		  * @throws Exception
 		  *
 		  * @author linjie
-		  * @since 1.0.1
+		  * @since 1.0.2
 		  */
-		 IRelationalable<T> ds(Object...params) throws Exception;
+		 IRelationalable<T> ds(Object...args) throws Exception;
 		
 		 /**
 		  * 分割符结束, 比如')'等等, 由搜索器实现类自定义
 		  * <br/> 必须与开始分隔符成对出现
 		  * 
-		  * @param params 可选参数, 由搜索器实现类自定义决定是什么实现
+		  * @param args 可选参数, 由搜索器实现类自定义决定是什么实现
 		  * @return 当前连接器的实例, 形成链型调用, 后必接连接器的中的内容
 		  * 
 		  * @throws Exception
 		  *
 		  * @author linjie
-		  * @since 1.0.1
+		  * @since 1.0.2
 		  */
-		 IRelationalable<T> de(Object...params) throws Exception;
+		 IRelationalable<T> de(Object...args) throws Exception;
 	}
 	
 	/**
@@ -513,7 +522,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 	 * @param <T>　源字段类类型
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	public interface ITransformable<T> {
 		
@@ -523,7 +532,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * @return 当前类型的值
 		 *
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		T strToTarget(String str) throws Exception;
 		
@@ -532,7 +541,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * @return 当前类型的值代表的字符串
 		 *
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		String targetToStr(T obj) throws Exception;
 	}
@@ -540,12 +549,10 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 	/**
 	 * 搜索内容源, 继承它的子类可以添加搜索内容
 	 * 
-	 * @param <PT>　搜索参数类类型
 	 * @param <SCT>　搜索内容类类型
-	 * @param <RT>　搜索结果类类型
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	static abstract class SearchContentSource<SCT> {
 		
@@ -557,30 +564,31 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * @throws Exception 如果键或值为null则抛出异常
 		 * 
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
-		protected abstract void addSearchEntry(String key, SCT searchContent) throws Exception;
+		protected abstract void addSearchEntry(String key, SCT searchContent) throws Exception ;
 		
 		/**
-		 * 获取对应键
-		 * @param key
-		 * @return
-		 * @throws Exception
+		 * 获取对应键的搜索内容键值对
+		 * 
+		 * @param key 指定的搜索内容键
+		 * @return 对应键的搜索内容键值对
+		 * @throws Exception 
 		 * 
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
-		protected abstract List<SCT> getSearchEntry(String key) throws Exception;
+		protected abstract List<SCT> getSearchEntry(String key) throws Exception ;
 		
 		/**
+		 * 清除指定键搜索内容键值对
 		 * 
 		 * @param key 自定义的搜索内容Key, 不能为null
-		 * @throws Exception 如果键或值为null则抛出异常
 		 * 
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
-		protected abstract void clearSearchEntry(String key) throws Exception;
+		protected abstract void clearSearchEntry(String key) throws Exception ;
 	}
 	
 	// 所有的搜索内容
@@ -590,27 +598,26 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		= new HashMap<SearchContentSource<SCT>, Map<String, List<SCT>>>();
 	
 	/**
+	 * 创建一个搜索上下文
 	 * 
-	 * @param param
-	 * @return
-	 * @throws Exception
+	 * @return 搜索上下文
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
-	final static<PT extends AbsParameter<PT, SCT, RT>, SCT, RT> SearchContext<PT, SCT, RT> create()  throws Exception {
+	final static<PT extends AbsParameter<PT, SCT, RT>, SCT, RT> SearchContext<PT, SCT, RT> create() throws Exception {
 		return new SearchContext<PT, SCT, RT>();
 	}
 	
 	/**
+	 * 添加指定源的搜索内容键值对
 	 * 
-	 * @param searcher
-	 * @param key
-	 * @param searchContent
-	 * @throws Exception
+	 * @param source 指定的搜索内容源
+	 * @param key 键
+	 * @param searchContent 搜索内容
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	final void addSearchEntry(SearchContentSource<SCT> source, String key, SCT searchContent) throws Exception {
 		if(source == null) {
@@ -640,7 +647,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 	 * @return key对应的搜索内容值, 如果没有则返回null
 	 *
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	final List<SCT> getSearchEntry(String key) {
 		if(key == null || key.isEmpty()) {
@@ -650,13 +657,12 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 	}
 	
 	/**
+	 * 清空指定键的搜索内容
 	 * 
-	 * @param searcher
-	 * @param key
-	 * @throws Exception
+	 * @param key 指定的键
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	final void clearSearchEntry(String key) throws Exception {
 		if(key == null || key.isEmpty()) {
@@ -671,12 +677,12 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 	}
 	
 	/**
+	 * 根据搜索内容源移除其对应的所有的搜索内容键值对
 	 * 
-	 * @param source
-	 * @throws Exception
+	 * @param source 指定的搜索内容源
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	final void removeSearchEntryBySource(SearchContentSource<SCT> source) throws Exception {
 		if(source == null) {
@@ -699,11 +705,12 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 	}
 	
 	/**
+	 * 清除所有搜索内容键值对
 	 * 
 	 * @throws Exception
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	final void clear() throws Exception {
 		this.contents.clear();
@@ -711,13 +718,14 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 	}
 	
 	/**
+	 * 添加搜索内容的辅助方法
 	 * 
-	 * @param contentsRef
-	 * @param key
-	 * @param content
+	 * @param contentsRef 搜索内容容器的引用
+	 * @param key 键
+	 * @param content 搜索内容
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	private void addSearchContentHelper(Map<String, List<SCT>> contentsRef,
 			String key, SCT content) {
@@ -733,7 +741,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 	 * 禁止直接实例化
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	private SearchContext() {};
 }

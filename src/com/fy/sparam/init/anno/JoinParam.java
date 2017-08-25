@@ -24,7 +24,7 @@ public @interface JoinParam {
 	 * 关联搜索参数的关联字段对应的属性名称
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	public String mappedBy();
 	
@@ -32,7 +32,7 @@ public @interface JoinParam {
 	 * 关联类型
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	public JoinType joinType() default JoinType.INNER_JOIN;
 	
@@ -40,7 +40,7 @@ public @interface JoinParam {
 	 * 关联的关联字段之间的关系类型
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	public RelationType relationType() default RelationType.EQ;
 }

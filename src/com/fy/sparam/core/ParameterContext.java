@@ -19,13 +19,14 @@ import com.fy.sparam.core.SearchContext.ITransformable;
 import com.fy.sparam.util.StringUtils;
 
 /**
+ * 搜索参数上下文
  * 
- * @param <PT>
- * @param <SCT>
- * @param <RT>
+ * @param <PT> 搜索参数类类型
+ * @param <SCT> 搜索内容类类型
+ * @param <RT> 搜索结果类类型
  * 
  * @author linjie
- * @since 1.0.1
+ * @since 1.0.2
  */
 public final class ParameterContext<PT extends AbsParameter<PT, SCT, RT>, SCT, RT>
 implements Cloneable {
@@ -34,13 +35,16 @@ implements Cloneable {
 	 * 使用的搜索参数对象路径分隔符
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	public static final String PATH_SPERATOR = ".";
+	
 	// 全局使用的搜索参数对象初始化器
 	IInitializor<PT, SCT, RT> intializor;
 	// 所有搜索字段类型转换器
 	Map<Class<?>, ITransformable<?>> fieldTransformer;
+	// 克隆相关
+	boolean isPrototype;
 	// 所有的有关搜索参数和搜索参数字段和搜索器
 	PT rootParam;
 	Set<PT> allParams = new HashSet<PT>(); /* 不包括继承和动态关联的 */
@@ -64,14 +68,19 @@ implements Cloneable {
 	PT realDynamicJoinParam; /* 被动态关联的根搜索参数进行过最短关联处理后实际用来关联的搜索参数 */
 	
 	/**
+	 * 注册继承关联搜索参数
 	 * 
-	 * @param param
-	 * @param mappedFromParamField
-	 * @param inheritJoinedParam
-	 * @throws Exception
+	 * @param fromParam 关联起点搜索参数
+	 * @param inheritJoinedParam 继承关联的关联终点搜索参数 
+	 * @param joinType 关联类型
+	 * @param relationType 关联关系类型
+	 * @param fromFieldName 关联起点字段名称, 必须是关联起点搜索参数拥有的字段
+	 * @param toFieldName 关联终点字段名称, 必须是关联终点搜索参数拥有的字段
+	 * @param args 初始化默认关联搜索参数需要的参数, 可能没有
+	 * @throws Exception 注册失败则抛出异常
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	public final void registerInheritJoinedParameter(PT fromParam, PT inheritJoinedParam,
 			JoinType joinType, RelationType relationType,
@@ -93,14 +102,19 @@ implements Cloneable {
 	}
 	
 	/**
+	 * 注册默认关联搜索参数
 	 * 
-	 * @param param
-	 * @param mappedFromParamField
-	 * @param inheritJoinedParam
-	 * @throws Exception
+	 * @param fromParam 关联起点搜索参数
+	 * @param defaultJoinedParam 默认关联的关联终点搜索参数 
+	 * @param joinType 关联类型
+	 * @param relationType 关联关系类型
+	 * @param fromFieldName 关联起点字段名称, 必须是关联起点搜索参数拥有的字段
+	 * @param toFieldName 关联终点字段名称, 必须是关联终点搜索参数拥有的字段
+	 * @param args 初始化默认关联搜索参数需要的参数, 可能没有
+	 * @throws Exception 注册失败则抛出异常
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	public final void registerDefaultJoinedParameter(PT fromParam, PT defaultJoinedParam,
 			JoinType joinType, RelationType relationType,
@@ -122,13 +136,14 @@ implements Cloneable {
 	}
 	
 	/**
+	 * 注册搜索参数字段
 	 * 
-	 * @param belongParam
-	 * @param paramField
-	 * @throws Exception
+	 * @param belongParam 字段所属的搜索参数
+	 * @param paramField 搜索参数字段
+	 * @throws Exception 注册失败则抛出异常
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	public final void registerParameterField(PT belongParam, ParameterField<PT, SCT, RT> paramField, Object...args) throws Exception {
 		// 调用初始化器进行初始化(所属搜索参数中不需要额外操作)
@@ -140,13 +155,14 @@ implements Cloneable {
 	}
 	
 	/**
+	 * 注册搜索器
 	 * 
-	 * @param belongParam
-	 * @param searcher
-	 * @throws Exception
+	 * @param belongParam 搜索器所属的搜索参数
+	 * @param searcher 搜索器
+	 * @throws Exception 注册失败则抛出异常
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	@SuppressWarnings("unchecked")
 	public final void registerSeacher(PT belongParam,  ParameterField<PT, SCT, RT> belongParamField,
@@ -161,22 +177,24 @@ implements Cloneable {
 	}
 
 	/**
+	 * 获取根搜索参数
 	 * 
-	 * @return
+	 * @return 根搜搜索参数
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	public final PT getRootParameter() {
 		return this.rootParam;
 	}
 	
 	/**
+	 * 获取当前搜索参数树中所有搜索参数字段
 	 * 
-	 * @return
+	 * @return 当前搜索参数树中所有搜索参数字段
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	public final Collection<ParameterField<PT, SCT, RT>> getAllParameterFields() {
 		List<ParameterField<PT, SCT, RT>> result = 
@@ -186,12 +204,13 @@ implements Cloneable {
 	}
 	
 	/**
+	 * 以指定的搜索参数为起点获取其下可管理的所有搜索参数字段
 	 * 
-	 * @param mappedParam
-	 * @return
+	 * @param startParam 指定的搜索参数
+	 * @return 其下可管理的所有搜索参数字段
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	public final Collection<ParameterField<PT, SCT, RT>> getReachableParameterFieldsWithStartParam(PT startParam) {
 		if(startParam.paramType == ParameterType.ROOT) {
@@ -209,10 +228,11 @@ implements Cloneable {
 	
 	/**
 	 * 构造器: 指定初始化器
-	 * @param intializor
+	 * 
+	 * @param intializor 指定的全局初始化器
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	ParameterContext(IInitializor<PT, SCT, RT> intializor) {
 		this.intializor = intializor;
@@ -220,11 +240,12 @@ implements Cloneable {
 	}
 	
 	/**
+	 * 注册为根搜索参数
 	 * 
-	 * @param rootParam
+	 * @param rootParam 根搜索参数
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	final void registerRootParameter(PT rootParam) {
 		if(rootParam.paramType != ParameterType.ROOT) {
@@ -238,13 +259,13 @@ implements Cloneable {
 	}
 	
 	/**
-	 * 
+	 * 生成全局唯一的表别名, 在表别名后接数字
 	 * <br/> 破坏性的, 不可复原.
 	 * 
 	 * @param startCount 计数起点, 必须大于0
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	final void generateGlobalNonConflictTableAlias(int startCount) {
 		if(startCount < 0) {
@@ -258,13 +279,10 @@ implements Cloneable {
 	}
 	
 	/**
-	 * 
-	 * <br/> 破坏性的, 不可复原.
-	 * 
-	 * @param startCount 计数起点, 必须大于0
+	 * 生成所有搜素参数字段的搜索参数对象路径
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	final void generateAllParameterFieldPath() {
 		for(ParameterField<PT, SCT, RT> paramField : this.allParamFields) {
@@ -279,7 +297,7 @@ implements Cloneable {
 	 * @return translator 可用的搜索器类型解析器, 如果找不到会返回null
 	 *
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	@SuppressWarnings("unchecked")
 	final <T> ITransformable<T> getFieldTransformer(Class<T> typeClass) {
@@ -295,11 +313,12 @@ implements Cloneable {
 	}
 	
 	/**
+	 * 获取当前搜索上下文
 	 * 
-	 * @return
+	 * @return 当前搜索上下文,如果原来没有会自动建立一个
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	final SearchContext<PT, SCT, RT> getCurrentSearchContext() throws Exception {
 		if(this.usingSearchContext == null) {
@@ -316,7 +335,7 @@ implements Cloneable {
 	 * @return 搜索信息所属的搜索参数字段
 	 *
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	final ParameterField<PT, SCT, RT> getIndeedSearchParameterField(ParameterField<PT, SCT, RT> paramField) {
 		ParameterField<PT, SCT, RT> tmpParamField = paramField;
@@ -337,7 +356,7 @@ implements Cloneable {
 	 * @return 以指定的搜索字段为代表操作的字段的搜索参数字段, 默认关联链中找不到返回null
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	final ParameterField<PT, SCT, RT> getIndeedRepresentParamField(ParameterField<PT, SCT, RT> startParamField) {
 		PT currentParam = startParamField.belongParameter;
@@ -373,7 +392,7 @@ implements Cloneable {
 	 * @param endSetJoinWorker 结束时设置最后一个搜索参数的关联处理器
 	 *
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	final void reverseParametersJoinDirection(PT start, PT end, JoinWorker<PT, SCT, RT> endSetJoinWorker) {
 		// 如果开始等于结尾或开始的关联处理器为null, 则不用处理
@@ -407,12 +426,13 @@ implements Cloneable {
 	}
 	
 	/**
+	 * 判断某个搜索参数是否是当前搜索上下文可管理的搜索参数
 	 * 
-	 * @param param
-	 * @return
+	 * @param param 需要判断的搜索参数
+	 * @return 判断结果
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	final boolean isReachableParameter(PT param) {
 		if(this.allParams.contains(param)) {
@@ -429,12 +449,13 @@ implements Cloneable {
 	}
 	
 	/**
+	 * 判断某个搜索参数是否是当前搜索上下文可管理的搜索器
 	 * 
-	 * @param searcher
-	 * @return
+	 * @param searcher 需要判断的搜索器
+	 * @return 判断结果
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	final boolean isReachableSeacher(AbsSearcher<PT, SCT, RT, ?> searcher) {
 		if(this.allSearchers.contains(searcher)) {
@@ -451,12 +472,13 @@ implements Cloneable {
 	}
 	
 	/**
+	 * 获取搜索参数对象的路径
 	 * 
-	 * @param target
-	 * @return
+	 * @param target 目标搜索参数对象, 只能是搜索参数或搜索器
+	 * @return 该搜索参数对象的路径
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	@SuppressWarnings("unchecked")
 	final <POT> String getParameterObjPath(POT target) {
@@ -520,14 +542,15 @@ implements Cloneable {
 	}
 	
 	/**
+	 * 以指定的搜索参数为起点, 往下找路径对应的搜索参数对象
 	 * 
-	 * @param startParam
-	 * @param targetClass
-	 * @param path
-	 * @return
+	 * @param startParam 起点搜索参数
+	 * @param targetClass 目标搜索参数对象的类字节码
+	 * @param path 搜索参数对象路径
+	 * @return 对应路径的搜索参数对象, 找不到则返回null
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	@SuppressWarnings("unchecked")
 	final <POT> POT getParameterObjWithStartParam(PT startParam, Class<POT> targetClass, String targetPath) {
@@ -549,8 +572,11 @@ implements Cloneable {
 		if(! needParam && ! needSearcher) {
 			throw new IllegalArgumentException("获取的搜索参数对象的类型只能是搜索参数, 搜索器");
 		}
-		if(targetPath.isEmpty() && needParam) { /* 请求获取搜索参数且目标路径为空(包括为null或this)则直接返回起点搜索参数 */
-			return (POT) startParam; 
+		if(targetPath.isEmpty()) { /* 请求获取搜索参数且目标路径为空(包括为null或this)则直接返回起点搜索参数 */
+			if(needParam) {
+				return (POT) startParam; 
+			}
+			return null;
 		}
 		Object result = null;
 		PT currentParam = startParam;
@@ -606,12 +632,13 @@ implements Cloneable {
 	}
 	
 	/**
+	 * 以指定的搜索参数为起点, 往下找所有可找到的搜索器
 	 * 
-	 * @param startParam
-	 * @return
+	 * @param startParam 指定的搜索参数
+	 * @return 所有可找到的搜索器
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	final Collection<AbsSearcher<PT, SCT, RT, ?>> getAllSearchersWithStartParam(PT startParam) {
 		if(startParam.paramType == ParameterType.ROOT) {
@@ -628,10 +655,10 @@ implements Cloneable {
 	}
 	
 	/**
-	 * 克隆一个搜索参数字段, 重置相关引用信息
+	 * 克隆一个搜索参数上下文, 重置相关引用信息
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	@Override
 	@SuppressWarnings("unchecked")
@@ -655,12 +682,13 @@ implements Cloneable {
 	}
 	
 	/**
+	 * 辅助方法: 递归获取所有的搜索参数字段数量, 包括动态关联的部分
 	 * 
-	 * @param currentCount
-	 * @return
+	 * @param currentCount 已计算的数量
+	 * @return 新计算的数量
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	private int recursiveGetAllParameterFieldsCount(int currentCount) {
 		currentCount += this.allParamFields.size();
@@ -673,11 +701,12 @@ implements Cloneable {
 	}
 	
 	/**
+	 * 辅助方法: 递归获取所有搜索参数字段, 包括动态关联的部分
 	 * 
-	 * @param container
+	 * @param container 存放结果的容器
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	private void recursiveGetAllParameterFields(Collection<ParameterField<PT, SCT, RT>> container) {
 		container.addAll(this.allParamFields);

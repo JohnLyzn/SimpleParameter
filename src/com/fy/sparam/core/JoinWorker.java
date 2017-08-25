@@ -5,44 +5,46 @@ import java.util.Collection;
 import com.fy.sparam.util.StringUtils;
 
 /**
- * 关联关系连接器
+ * 关联处理器器
  * 
  * @param <PT>　搜索参数类类型
+ * @param <SCT>　搜索内容类类型
+ * @param <RT>　搜索结果类类型
  * 
  * @author linjie
- * @since 1.0.1
+ * @since 1.0.2
  */
 public final class JoinWorker<PT extends AbsParameter<PT, SCT, RT>, SCT, RT> {
 
 	/**
-	 * 连接时使用的类型
+	 * 关联时使用的类型
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	public static enum JoinType {
 		
 		/**
-		 * 内连接类型
+		 * 内关联类型
 		 * 
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		INNER_JOIN,
 		
 		/**
-		 * 左外连接类型
+		 * 左外关联类型
 		 * 
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		LEFT_JOIN,
 		
 		/**
-		 * 右外连接类型
+		 * 右外关联类型
 		 * 
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		RIGHT_JOIN;
 	}
@@ -51,44 +53,45 @@ public final class JoinWorker<PT extends AbsParameter<PT, SCT, RT>, SCT, RT> {
 	 * 关联的关联字段之间的关系类型
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	public static enum RelationType {
 		
 		/**
-		 * 连接条件使用等于
+		 * 关联关系使用等于
 		 * 
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		EQ,
 		
 		/**
-		 * 连接条件使用不等于
+		 * 关联关系使用不等于
 		 * 
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		NOT_EQ,
 		
 		/**
-		 * 连接条件使用在集合中
+		 * 关联关系使用在集合中
 		 * 
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		IN,
 		
 		/**
-		 * 连接条件使用不在集合中
+		 * 关联关系使用不在集合中
 		 * 
 		 * @author linjie
-		 * @since 1.0.1
+		 * @since 1.0.2
 		 */
 		NOT_IN;
 	}
-	
+	// 是否完成关联操作处理的标志
 	boolean hasJoin;
+	// 关联的核心数据
 	PT mappedFromParam;
 	PT mappedParam;
 	ParameterField<PT, SCT, RT> mappedFromField;
@@ -102,17 +105,18 @@ public final class JoinWorker<PT extends AbsParameter<PT, SCT, RT>, SCT, RT> {
 	}
 	
 	/**
+	 * 构建一个关联处理
 	 * 
-	 * @param paramType
-	 * @param param
-	 * @param joinType
-	 * @param relationType
-	 * @param from
-	 * @param to
-	 * @return
+	 * @param fromParam 关联起点搜索参数
+	 * @param toParam 关联终点搜索参数
+	 * @param joinType 关联类型
+	 * @param relationType 关联关系类型
+	 * @param fromField 关联起点字段
+	 * @param toField 关联终点字段
+	 * @return 返回生成的关联处理器
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	final static <PT extends AbsParameter<PT, SCT, RT>, SCT, RT> JoinWorker<PT, SCT, RT> build(PT fromParam, PT toParam,
 			JoinType joinType, RelationType relationType,
@@ -128,20 +132,21 @@ public final class JoinWorker<PT extends AbsParameter<PT, SCT, RT>, SCT, RT> {
 	}
 	
 	/**
+	 * 进行关联处理操作, 回调搜索参数中的实现
 	 * 
-	 * @throws Exception
+	 * @throws Exception 处理失败则抛出异常
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	final void doJoinWork() throws Exception {
 		if(! this.hasJoin) {
-			// 如果跳着调用保证连接链中前面的搜索参数会进行连接
+			// 如果跳着调用保证关联链中前面的搜索参数会进行关联
 			JoinWorker<PT, SCT, RT> fromParamJoinWorker = this.mappedFromParam.usingJoinWorker;
 			if(fromParamJoinWorker != null) {
 				fromParamJoinWorker.doJoinWork();
 			}
-			// 设置为已经连接
+			// 设置为已经关联
 			this.hasJoin = true;
 			// 调用实际关联信息添加实现, 一定要是关联终点搜索参数的方法, 这样才能保证搜索内容属于该搜索参数, 方便回滚
 			this.mappedParam.onJoin(this.mappedFromParam,
@@ -151,13 +156,14 @@ public final class JoinWorker<PT extends AbsParameter<PT, SCT, RT>, SCT, RT> {
 	}
 	
 	/**
+	 * 进行回滚关联处理操作
 	 * 
 	 * @param isForce 是否强制清除掉搜索参数字段使用的搜索器产生的搜索内容, 这样不会因为字段被搜索或输出而退出
-	 * @param isNeedjudgeReachable
-	 * @throws Exception
+	 * @param isNeedjudgeReachable 是否需要判断所有可达的搜索参数字段, 主要为内部调用不用重复判断
+	 * @throws Exception 回滚失败则抛出异常
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	final void cancelJoinWork(boolean isForce, boolean isNeedjudgeReachable) throws Exception {
 		if(this.hasJoin) {
@@ -186,7 +192,7 @@ public final class JoinWorker<PT extends AbsParameter<PT, SCT, RT>, SCT, RT> {
 			searchContext.removeSearchEntryBySource(this.mappedParam);
 			// 还原关联标志
 			this.hasJoin = false;
-			// 对关联来源的搜索参数进行此操作(可能是一个隔代字段设置输出导致连接)
+			// 对关联来源的搜索参数进行此操作(可能是一个隔代字段设置输出导致关联)
 			if(this.mappedFromParam.usingJoinWorker != null) {
 				this.mappedFromParam.usingJoinWorker.cancelJoinWork(false, false);
 			}
@@ -194,10 +200,10 @@ public final class JoinWorker<PT extends AbsParameter<PT, SCT, RT>, SCT, RT> {
 	}
 	
 	/**
-	 * 
+	 * 反转关联方向, 起点变终点
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	final void reverseJoinRelation() {
 		// 原来的被关联字段和关联字段 变为 当前的关联字段和被关联字段(交换位置)
@@ -215,7 +221,7 @@ public final class JoinWorker<PT extends AbsParameter<PT, SCT, RT>, SCT, RT> {
 	 * 不允许直接new
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	private JoinWorker() {};
 }

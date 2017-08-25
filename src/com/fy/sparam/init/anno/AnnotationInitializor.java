@@ -28,7 +28,7 @@ import com.fy.sparam.util.StringUtils;
  * @param <RT> 搜索结果类类型
  * 
  * @author linjie
- * @since 1.0.1
+ * @since 1.0.2
  */
 @SuppressWarnings("unchecked")
 public final class AnnotationInitializor<PT extends AbsParameter<PT, SCT, RT>, SCT, RT> 
@@ -43,7 +43,7 @@ implements IInitializor<PT, SCT, RT> {
 	 * @param fieldTransformer
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	public AnnotationInitializor(Map<Class<?>, ITransformable<?>> fieldTransformer) {
 		this.fieldTransformer = fieldTransformer;
@@ -230,6 +230,19 @@ implements IInitializor<PT, SCT, RT> {
 
 	@Override
 	public void initSearcher(AbsSearcher<PT, SCT, RT, ?> searcher, Object... args) throws Exception {
-		
+	}
+
+	@Override
+	public void onDoneCloneJoinedParameter(PT ownerParameter, ParameterField<PT, SCT, RT> fromParamField,
+			PT clonedJoinParam) throws Exception {
+		Field field = (Field) fromParamField.getExtra(PF_EXTRA_FIELD);
+		field.set(ownerParameter, clonedJoinParam);
+	}
+
+	@Override
+	public void onDoneCloneSearcher(PT ownerParameter, ParameterField<PT, SCT, RT> belongParamField,
+			AbsSearcher<PT, SCT, RT, ?> clonedSearcher) throws Exception {
+		Field field = (Field) belongParamField.getExtra(PF_EXTRA_FIELD);
+		field.set(ownerParameter, clonedSearcher);
 	}
 }

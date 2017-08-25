@@ -10,7 +10,7 @@ import java.lang.annotation.Target;
  * 对应表的列信息配置注解
  * 
  * @author linjie
- * @since 1.0.1
+ * @since 1.0.2
  */
 @Documented
 @Target(ElementType.FIELD)
@@ -21,7 +21,7 @@ public @interface FieldMeta {
 	 * 数据库中表的字段的名称
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	public String name();
 	
@@ -30,7 +30,7 @@ public @interface FieldMeta {
 	 * <br/>如果有的话获取字段的完全名称时使用的就是别名而不是原来字段名称
 	 *
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	public String alias() default "";
 }

@@ -21,7 +21,7 @@ import com.fy.sparam.test.StringUtils;
  * 
  * 
  * @author linjie
- * @since 1.0.1
+ * @since 1.0.2
  */
 public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult> {
 
@@ -29,7 +29,7 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 	 * 最小的页码
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	public static final int MIN_PAGE = 1;
 	
@@ -37,7 +37,7 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 	 * 最大的搜索数量
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	public static final int MAX_COUNT = 500;
 	
@@ -93,7 +93,7 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 	/**
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	private static final AnnotationInitializor<SqlParameter, SqlPiece, SqlResult> annoInitializor
 		= new AnnotationInitializor<SqlParameter, SqlPiece, SqlResult>(BaseConfig.PARAM_TRANSLATORS);
@@ -120,7 +120,7 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 	 * @return
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	public static <SPT extends SqlParameter> SPT getParameter(Class<SPT> paramClazz) throws Exception {
 		SPT param = paramClazz.newInstance();

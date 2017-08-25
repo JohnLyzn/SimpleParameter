@@ -23,7 +23,7 @@ public class BaseConfig {
 	 * <br/> 保证线程安全, 使用ConcurrentHashMap
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	public static final Map<Class<?>, ITransformable<?>> PARAM_TRANSLATORS;
 	

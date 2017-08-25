@@ -13,7 +13,7 @@ import com.fy.sparam.util.StringUtils;
  * @param <RT>　搜索结果类类型
  * 
  * @author lyzn
- * @since 1.0.1
+ * @since 1.0.2
  */
 public final class ParameterField<PT extends AbsParameter<PT, SCT, RT>, SCT, RT>
 implements Cloneable {
@@ -22,7 +22,7 @@ implements Cloneable {
 	 * 字段名称
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	String fieldName;
 	
@@ -30,7 +30,7 @@ implements Cloneable {
 	 * 字段相对于根搜索参数的字段路径
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	String fieldPath;
 	
@@ -38,7 +38,7 @@ implements Cloneable {
 	 * 数据库属性名称
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	String dbFieldName;
 	
@@ -46,7 +46,7 @@ implements Cloneable {
 	 * 数据库属性的别名, 可能没有
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	String dbFieldAlias;
 
@@ -54,7 +54,7 @@ implements Cloneable {
 	 * 是否是排序字段
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	boolean isOrderBy;
 
@@ -62,7 +62,7 @@ implements Cloneable {
 	 * 排序字段是否为正序, 否则为倒序
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	boolean isAsc;
 
@@ -70,7 +70,7 @@ implements Cloneable {
 	 * 排序的优先级
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	int orderByPriority;
 
@@ -78,7 +78,7 @@ implements Cloneable {
 	 * 是否是分组字段
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	boolean isGroupBy;
 
@@ -86,7 +86,7 @@ implements Cloneable {
 	 * 分组优先级
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	int groupByPriority;
 	
@@ -94,7 +94,7 @@ implements Cloneable {
 	 * 当前字段是否被作为搜索内容
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	boolean isSearched;
 	
@@ -102,7 +102,7 @@ implements Cloneable {
 	 * 是否为输出字段
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	boolean isOutput;
 	
@@ -119,7 +119,7 @@ implements Cloneable {
 	 * 可以自定义的额外的信息存储容器器
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	Map<String, Object> extraInfo;
 
@@ -136,7 +136,7 @@ implements Cloneable {
 	 * 是否是被关联字段
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	boolean isMappedFromField;
 	
@@ -205,33 +205,36 @@ implements Cloneable {
 	}
 
 	/**
+	 * 获取当前搜索参数字段在搜索参数树中的路径
 	 * 
-	 * @return
+	 * @return 当前搜索参数字段在搜索参数树中的路径
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	public final String getFieldPath() {
 		return fieldPath;
 	}
 	
 	/**
+	 * 当前搜索参数字段是否被搜索了
 	 * 
-	 * @return
+	 * @return 当前搜索参数字段是否被搜索了的判断结果
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	public final boolean isSearched() {
 		return isSearched;
 	}
 
 	/**
+	 * 当前搜索参数字段是否被输出了
 	 * 
-	 * @return
+	 * @return 当前搜索参数字段是否被输出了的判断结果
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	public final boolean isOutput() {
 		return isOutput;
@@ -244,7 +247,7 @@ implements Cloneable {
 	 * @return 经过表别名前缀处理的完全数据库列名
 	 *
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	public final String getWholeDbFieldName() {
 		return StringUtils.concat(this.belongParameter.tableAlias, ParameterContext.PATH_SPERATOR, this.dbFieldName);
@@ -259,7 +262,7 @@ implements Cloneable {
 	 * @return 经过表别名前缀处理的唯一属性名
 	 *
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	public final String getDbTableAliasLocateFieldName() {
 		AbsParameter<PT, SCT, RT> targetParam = this.belongParameter;
@@ -308,25 +311,18 @@ implements Cloneable {
 		return null;
 	}
 	
-	/**
-	 * 重写toString方法
-	 * 
-	 * @return 字段路径
-	 * 
-	 * @author linjie
-	 * @since 1.0.1
-	 */
 	@Override
 	public final String toString() {
 		return StringUtils.concat(super.toString(), " WITH PATH ", this.fieldPath);
 	}
 	
 	/**
+	 * 重置搜索参数字段
 	 * 
-	 * @throws Exception
+	 * @throws Exception 重置失败则抛出异常
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	void reset() throws Exception {
 		// 重置所有标志位相关的
@@ -348,7 +344,7 @@ implements Cloneable {
 	 * 克隆一个搜索参数字段, 重置相关引用信息
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	@Override
 	@SuppressWarnings("unchecked")

@@ -4,7 +4,7 @@ package com.fy.sparam.util;
  * 
  * 
  * @author linjie
- * @since 1.0.1
+ * @since 1.0.2
  */
 public class StringUtils {
 
@@ -15,7 +15,7 @@ public class StringUtils {
 	 * @return 拼接的连续字符串, 不会为null(空参数情况下返回空字符串)
 	 * 
 	 * @author linjie
-	 * @since 1.0.1
+	 * @since 1.0.2
 	 */
 	public static String concat(Object...pieces) {
 		if(pieces == null || pieces.length == 0) {
