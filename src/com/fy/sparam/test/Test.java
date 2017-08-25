@@ -20,6 +20,8 @@ public class Test {
 //		OrderParameter param = SqlParameter.getParameter(OrderParameter.class);
 //		param.setAllFieldOutput(true);
 //		System.out.println(param.build().getSql());
+//		param.setAllFieldOutput(false);
+//		System.out.println(param.build().getSql());
 //		long start = System.nanoTime();
 //		OrderParameter param1 = (OrderParameter) param.clone();
 //		System.out.println(param1.build().getSql());
