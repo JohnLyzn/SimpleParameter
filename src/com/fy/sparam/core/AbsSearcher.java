@@ -789,7 +789,7 @@ implements ISearchable<T>, IRelationalable<T>, Cloneable {
 	 * @author linjie
 	 * @since 1.0.2
 	 */
-	protected void onMarkGroupBy(Integer priority) throws Exception {}
+	protected void onMarkGroupBy(int priority) throws Exception {}
 	
 	/**
 	 * 可选重载: 在标记为排序字段时回调
@@ -801,7 +801,7 @@ implements ISearchable<T>, IRelationalable<T>, Cloneable {
 	 * @author linjie
 	 * @since 1.0.2
 	 */
-	protected void onMarkOrderBy(Integer priority, Boolean isAsc) throws Exception {}
+	protected void onMarkOrderBy(int priority, boolean isAsc) throws Exception {}
 	
 	/**
 	 * 可选重载: 在设置当前搜索器对应的字段进行输出时回调

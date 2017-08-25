@@ -17,19 +17,21 @@ public class Test {
 //		param.reset();
 //		param1.build().getSql();
 		
-		OrderParameter param = SqlParameter.getParameter(OrderParameter.class);
-		param.setAllFieldOutput(true);
-		System.out.println(param.build().getSql());
-		long start = System.nanoTime();
-		OrderParameter param1 = (OrderParameter) param.clone();
-		System.out.println(param1.build().getSql());
-		System.out.println(param.build().getSql());
-		param.reset();
-		System.out.println(param.build().getSql());
-		System.out.println(System.nanoTime() - start);
+//		OrderParameter param = SqlParameter.getParameter(OrderParameter.class);
+//		param.setAllFieldOutput(true);
+//		System.out.println(param.build().getSql());
+//		long start = System.nanoTime();
+//		OrderParameter param1 = (OrderParameter) param.clone();
+//		System.out.println(param1.build().getSql());
+//		System.out.println(param.build().getSql());
+//		param.reset();
+//		System.out.println(param.build().getSql());
+//		System.out.println(System.nanoTime() - start);
 		// TODO 所有注释
 		
-//		CustomerParameter cParam = SqlParameter.getParameter(CustomerParameter.class);
+		CustomerParameter cParam = SqlParameter.getParameter(CustomerParameter.class);
 //		CustomerParameter cParam1 = (CustomerParameter) cParam.clone();
+		cParam.email.eq("1");
+		System.out.println(cParam.build().getSql());
 	}
 }
