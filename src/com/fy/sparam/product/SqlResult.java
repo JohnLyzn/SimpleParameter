@@ -18,7 +18,7 @@ public final class SqlResult {
 	 * @author linjie
 	 * @since 4.5.0
 	 */
-	private String sql;
+	private StringBuilder sql;
 	
 	/**
 	 * 完整sql语句中使用占位符'?'对应的值
@@ -34,7 +34,7 @@ public final class SqlResult {
 	 * @author linjie
 	 * @since 4.5.0
 	 */
-	private List<String> selectedFieldNames;
+	private List<String> selectedDbTableAliasLocateFieldNames;
 	
 	/**
 	 * 获取构建完成的完整sql语句
@@ -45,7 +45,7 @@ public final class SqlResult {
 	 * @since 4.5.0
 	 */
 	public String getSql() {
-		return sql;
+		return sql.toString();
 	}
 	
 	/**
@@ -78,10 +78,10 @@ public final class SqlResult {
 	 * @since 4.5.0
 	 */
 	public List<String> getSelectedFieldNames() throws IllegalAccessException {
-		if(selectedFieldNames == null || selectedFieldNames.isEmpty()) {
+		if(selectedDbTableAliasLocateFieldNames == null || selectedDbTableAliasLocateFieldNames.isEmpty()) {
 			throw new IllegalAccessException("只有搜索参数构建模式为SELECT_FIELDS且有设置输出字段才能获取选择输出的搜索参数字段唯一名称列表");
 		}
-		return selectedFieldNames;
+		return selectedDbTableAliasLocateFieldNames;
 	}
 
 	/**
@@ -93,11 +93,39 @@ public final class SqlResult {
 	 * @author linjie
 	 * @since 4.5.0
 	 */
-	protected void setSql(String sql) throws IllegalArgumentException  {
-		if(sql == null) {
-			throw new IllegalArgumentException("SQL搜索参数构建结果的sql语句不能为null");
+	protected void addSqlPiece(SqlPiece sqlPiece) throws IllegalArgumentException  {
+		if(sqlPiece == null) {
+			throw new IllegalArgumentException("SQL搜索参数构建结果的sql语句片段不能为null");
 		}
-		this.sql = sql;
+		if(this.sql == null) {
+			this.sql = new StringBuilder();
+		}
+		this.sql.append(sqlPiece.getSqlPart());
+		this.addPreparedVals(sqlPiece.getVals());
+	}
+	
+	/**
+	 * 设置构建完成的完整sql语句
+	 * <br/>设置完成表示构建完成
+	 * 
+	 * @param sql
+	 *
+	 * @author linjie
+	 * @since 4.5.0
+	 */
+	protected void addSqlPieces(Collection<SqlPiece> sqlPieces) throws IllegalArgumentException  {
+		if(sqlPieces == null) {
+			throw new IllegalArgumentException("SQL搜索参数构建结果的sql语句片段不能为null");
+		}
+		if(! sqlPieces.isEmpty()) {
+			if(this.sql == null) {
+				this.sql = new StringBuilder();
+			}
+			for(SqlPiece sqlPiece : sqlPieces) {
+				this.sql.append(sqlPiece.getSqlPart());
+				this.addPreparedVals(sqlPiece.getVals());
+			}
+		}
 	}
 	
 	/**
@@ -109,7 +137,7 @@ public final class SqlResult {
 	 * @author linjie
 	 * @since 4.5.0
 	 */
-	protected void addValsInSql(Collection<Object> partVals) {
+	protected void addPreparedVals(Collection<Object> partVals) {
 		if(vals == null) {
 			vals = new LinkedList<Object>();
 		}
@@ -125,7 +153,7 @@ public final class SqlResult {
 	 * @author linjie
 	 * @since 4.5.0
 	 */
-	protected void setSelectedFieldNames(List<String> selectedFieldNames) {
-		this.selectedFieldNames = selectedFieldNames;
+	protected void setSelectedDbTableAliasLocateFieldNames(List<String> selectedFieldNames) {
+		this.selectedDbTableAliasLocateFieldNames = selectedFieldNames;
 	}
 }

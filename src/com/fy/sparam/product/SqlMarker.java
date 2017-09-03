@@ -15,7 +15,7 @@ import com.fy.sparam.core.SearchContext.ISearchable;
  * @author linjie
  * @since 4.5.0
  */
-public class SqlParamMarker {
+public class SqlMarker {
 
 	/**
 	 * 标记搜索参数中哪些搜索参数字段需要更新
@@ -36,7 +36,7 @@ public class SqlParamMarker {
 	/**
 	 * 标记搜索参数中可以找到的搜索字段进行内容更新
 	 * <br/> 会自动设置该更新的搜索字段输出.
-	 * <br/> 与{@link IBaseDao #updateByParam(SqlParameter, SqlParamMarker)}配合使用.
+	 * <br/> 与{@link IBaseDao #updateByParam(SqlParameter, SqlMarker)}配合使用.
 	 * 
 	 * @param paramField 要更新的搜索参数字段
 	 * @param setValue 需要设置的实际的值, <strong>注意是传入存储到数据库实际的值</strong>
@@ -45,7 +45,7 @@ public class SqlParamMarker {
 	 * @author linjie
 	 * @since 4.5.0
 	 */
-	public final SqlParamMarker markUpdate(ISearchable<?> paramField, Object setValue) throws Exception {
+	public final SqlMarker markUpdate(ISearchable<?> paramField, Object setValue) throws Exception {
 		if(updateContents == null) {
 			updateContents = new HashMap<ISearchable<?>, Object>();
 		}
@@ -58,7 +58,7 @@ public class SqlParamMarker {
 	 * 标记搜索参数中可以找到的搜索参数进行删除对应表的记录
 	 * <br/> 会自动设置该删除搜索参数中的所有搜索字段输出.
 	 * <br/> 默认删除入口搜索参数对应的表记录.
-	 * <br/> 与{@link IBaseDao #deleteByParam(SqlParameter, SqlParamMarker)}配合使用.
+	 * <br/> 与{@link IBaseDao #deleteByParam(SqlParameter, SqlMarker)}配合使用.
 	 * 
 	 * @param param 要删除记录的表对应的搜索参数
 	 * @return 当前类的实例, 形成链式引用
@@ -66,7 +66,7 @@ public class SqlParamMarker {
 	 * @author linjie
 	 * @since 4.5.0
 	 */
-	public final SqlParamMarker markDelete(SqlParameter param) throws Exception {
+	public final SqlMarker markDelete(SqlParameter param) throws Exception {
 		if(deleteContents == null) {
 			deleteContents = new LinkedList<SqlParameter>();
 		}
