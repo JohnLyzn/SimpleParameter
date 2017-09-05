@@ -65,7 +65,7 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 		 * @since 1.0.2
 		 */
 		SELECT_ENTITIES(SqlMember.SELECT_ENTITIES_HEAD,
-				SqlMember.FROM, SqlMember.WHERE,
+				SqlMember.FROM, SqlMember.JOIN, SqlMember.WHERE,
 				SqlMember.ORDER_BY, SqlMember.GROUP_BY,
 				SqlMember.LIMIT),
 		/**
@@ -75,7 +75,7 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 		 * @since 1.0.2
 		 */
 		SELECT_FIELDS(SqlMember.SELECT_FIELDS_HEAD,
-				SqlMember.FROM, SqlMember.WHERE,
+				SqlMember.FROM, SqlMember.JOIN, SqlMember.WHERE,
 				SqlMember.ORDER_BY, SqlMember.GROUP_BY,
 				SqlMember.LIMIT),
 		/**
@@ -85,14 +85,14 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 		 * @since 1.0.2
 		 */
 		SELECT_COUNT(SqlMember.SELECT_COUNT_HEAD,
-				SqlMember.FROM, SqlMember.WHERE),
+				SqlMember.FROM, SqlMember.JOIN, SqlMember.WHERE),
 		/**
 		 * 构建删除DML
 		 * 
 		 * @author linjie
 		 * @since 1.0.2
 		 */
-		DELETE(SqlMember.DELETE_HEAD, SqlMember.FROM,
+		DELETE(SqlMember.DELETE_HEAD, SqlMember.FROM, SqlMember.JOIN,
 				SqlMember.WHERE),
 		/**
 		 * 构建更新DML
@@ -100,7 +100,7 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 		 * @author linjie
 		 * @since 1.0.2
 		 */
-		UPDATE(SqlMember.UPDATE_HEAD, SqlMember.FROM,
+		UPDATE(SqlMember.UPDATE_HEAD, SqlMember.JOIN,
 				SqlMember.UPDATE_SET_CONTENT, SqlMember.WHERE);
 		
 		/**
@@ -133,7 +133,7 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 		 * @author linjie
 		 * @since 1.0.2
 		 */
-		public SqlResult build(SqlParameter param, Object args) throws Exception {
+		public SqlResult build(SqlParameter param, Object...args) throws Exception {
 			SqlResult result = new SqlResult();
 			for(SqlMember sqlMember : sqlMembers) {
 				sqlMember.getBuilder().build(param, result, args);
@@ -163,8 +163,7 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 				param.setAllMyFieldOutput(true);
 				String tableAlias = param.getTableAlias();
 				StringBuilder tableAliasesBuilder = new StringBuilder(tableAlias).append(".*");
-				Collection<SqlParameter> inheritedFromParams = param.getInheritedFromParameters();
-				for(SqlParameter inheritedFromParam : inheritedFromParams) {
+				for(SqlParameter inheritedFromParam : param.getInheritedFromParameters()) {
 					tableAliasesBuilder.append(",").append(inheritedFromParam.getTableAlias()).append(".*");
 				}
 				result.addSqlPiece(new SqlPiece(StringUtils.concatAsStr(
@@ -238,6 +237,7 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 	
 			@Override
 			public void build(SqlParameter param, SqlResult result, Object... args) throws Exception {
+				param.setAllMyFieldOutput(true);
 				String countSql = "COUNT(1)";
 				String groupByFieldSql = param.getGroupBySqlStr();
 				if(! groupByFieldSql.isEmpty()) {
@@ -257,6 +257,7 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 	
 			@Override
 			public void build(SqlParameter param, SqlResult result, Object... args) throws Exception {
+				param.setAllMyFieldOutput(true);
 				// 获取需要删除的记录的表的搜索参数
 				List<SqlParameter> needDeleteParams = Collections.emptyList();
 				if(args.length > 1) {
@@ -266,8 +267,6 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 						}
 					}
 				}
-				// 构建变化的部分
-				String tableAlias = param.getTableAlias();
 				// 存储需要删除的记录的表别名列, 至少会加入当前搜索参数对应的表别名
 				List<String> needDelteTableAlias = new ArrayList<String>(needDeleteParams.size() + 1);
 				// 如果有指定删除哪些就不加入当前搜索参数对应的表别名, 否则加入当前搜索参数对应的表别名作为删除目标
@@ -276,7 +275,10 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 						needDelteTableAlias.add(needDeleteParam.getTableAlias());
 					}
 				} else {
-					needDelteTableAlias.add(tableAlias);
+					for(SqlParameter inheritedFormParam : param.getInheritedFromParameters()) {
+						needDelteTableAlias.add(inheritedFormParam.getTableAlias());
+					}
+					needDelteTableAlias.add(param.getTableAlias());
 				}
 				result.addSqlPiece(new SqlPiece(StringUtils.concatAsStr(
 						"DELETE ", FormatUtils.formatArrayStr(needDelteTableAlias.toString()))));
@@ -324,19 +326,18 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 							throw new IllegalArgumentException("构建update语句没有需要更新的内容!");
 						}
 						// 构建set子句的sql语句
-						StringBuilder setSqlBuilder = new StringBuilder("SET ");
+						StringBuilder setSqlBuilder = new StringBuilder("SET");
 						for(ISearchable<?> searchField : udpateContents.keySet()) {
 							SqlSearcher<?> fieldSearcher = (SqlSearcher<?>) searchField;
 							ParameterField<SqlParameter, SqlPiece, SqlResult> paramField =
 									fieldSearcher.getBelongParameterField();
 							String fieldName = paramField.getWholeDbFieldName();
+							setSqlBuilder.append(", ");
 							setSqlBuilder.append(fieldName);
-							setSqlBuilder.append(" = ?,");
+							setSqlBuilder.append(" = ?");
 						}
-						String setSql = setSqlBuilder.toString();
-						if(setSql.endsWith(",")) {
-							setSql = setSql.substring(0, setSql.length() - 1);
-						}
+						// "SET "
+						String setSql = setSqlBuilder.toString().replaceFirst(",", "");
 						result.addSqlPiece(new SqlPiece(setSql, udpateContents.values()));
 					}
 				} else {
@@ -359,7 +360,23 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 				String tableAlias = param.getTableAlias();
 				result.addSqlPiece(new SqlPiece(StringUtils.concatAsStr(
 						" FROM ", tableName, " ", tableAlias, " ")));
-				result.addSqlPieces(param.getSearchEntry(SqlMember.FROM.name()));
+			}
+		}),
+		
+		/**
+		 * 要关联的表连接sql语句
+		 * 
+		 * @author linjie
+		 * @since 1.0.2
+		 */
+		JOIN(new ISqlBuilder() {
+	
+			@Override
+			public void build(SqlParameter param, SqlResult result, Object... args) throws Exception {
+				List<SqlPiece> joinSqlPieces = param.getSearchEntry(SqlMember.JOIN.name());
+				if(! joinSqlPieces.isEmpty()) {
+					result.addSqlPieces(joinSqlPieces);
+				}
 			}
 		}),
 		
@@ -375,7 +392,7 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 			public void build(SqlParameter param, SqlResult result, Object... args) throws Exception {
 				List<SqlPiece> whereSqlPiece = param.getSearchEntry(SqlMember.WHERE.name());
 				if(! whereSqlPiece.isEmpty()) {
-					result.addSqlPiece(new SqlPiece("WHERE "));
+					result.addSqlPiece(new SqlPiece(" WHERE "));
 					result.addSqlPieces(whereSqlPiece);
 				}
 			}
@@ -634,7 +651,7 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 					" NOT IN (", mappedToDbTableAlias, ".", mappedToDbFieldName, ")");
 			break;
 		}
-		this.addSearchEntry(SqlMember.FROM.name(), new SqlPiece(StringUtils.concatAsStr(joinTypeStr, 
+		this.addSearchEntry(SqlMember.JOIN.name(), new SqlPiece(StringUtils.concatAsStr(joinTypeStr, 
 				" ", mappedToDbTableName, " ", mappedToDbTableAlias, " ON ", onStr, " ")));
 	}
 

@@ -58,7 +58,7 @@ public final class SqlPiece {
 			throw new IllegalArgumentException("sql语句不能为null");
 		}
 		this.sqlPart = sqlPart;
-		if(vals == null) {
+		if(this.vals == null) {
 			this.vals = new LinkedList<Object>();
 		}
 		this.vals.addAll(vals);

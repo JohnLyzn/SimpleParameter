@@ -1,6 +1,8 @@
 package com.fy.sparam.test;
 
+import com.fy.sparam.product.SqlMarker;
 import com.fy.sparam.product.SqlParameter;
+import com.fy.sparam.product.SqlParameter.BuildMode;
 
 public class Test {
 
@@ -29,13 +31,19 @@ public class Test {
 //		param.reset();
 //		System.out.println(param.build().getSql());
 //		System.out.println(System.nanoTime() - start);
-		// TODO 所有注释
 		
-		CustomerParameter cParam = SqlParameter.getParameter(CustomerParameter.class);
-		long start = System.nanoTime();
-//		cParam.createDate.setOutput(true);
-		cParam.email.eq("1");
-		System.out.println(cParam.build().getSql());
-		System.out.println(System.nanoTime() - start);
+		CustomerParameter cParam1 = SqlParameter.getParameter(CustomerParameter.class);
+		long start = System.currentTimeMillis();
+		long start1 = System.nanoTime();
+		for(int i = 0; i < 50; i ++) {
+			CustomerParameter cParam = SqlParameter.getParameter(CustomerParameter.class);
+			cParam.email.eq("1");
+			SqlMarker marker = new SqlMarker();
+			marker.markUpdate(cParam.name, "linjie");
+			System.out.println(cParam.build(BuildMode.UPDATE, marker).getSql());
+		}
+		System.out.println(System.currentTimeMillis() - start);
+		System.out.println(System.nanoTime() - start1);
+		System.out.println(cParam1.build().getSql());
 	}
 }
