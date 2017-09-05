@@ -187,15 +187,17 @@ implements Cloneable {
 	// 搜索参数对应的表信息
 	String tableName;
 	String tableAlias;
-	// 搜索参数的成员对象, 有进行注册时再初始化
+	// 搜索参数的私有成员对象, 有进行注册时再初始化
 	Map<String, ParameterField<PT, SCT, RT>> myParameterFields;
-	Map<ParameterField<PT, SCT, RT>, AbsSearcher<PT, SCT, RT, ?>> mySearchers; /* key是搜索器使用的搜索参数字段 */
-	Map<ParameterField<PT, SCT, RT>, PT> myDefaultJoinedParams; /* key是关联起点搜索参数字段(属于当前搜索参数的) */
+	Map<ParameterField<PT, SCT, RT>, AbsSearcher<PT, SCT, RT, ?>> mySearchers; 
+	Map<ParameterField<PT, SCT, RT>, PT> myDefaultJoinedParams;
 	Map<ParameterField<PT, SCT, RT>, PT> myInheritJoinedParams;
 	Map<ParameterField<PT, SCT, RT>, PT> myDynamicJoinedParams;
+	// 搜索参数的包含成员对象(针对继承的对象的缓存),  有进行注册时再初始化
+	Set<PT> myOwnedInheritedFromParameters; /* 包括当前搜索参数继承的所有父级搜索参数 */
+	Set<PT> myOwnedDefaultJoinedParameters; /* 包括当前搜索参数的和所有继承的父级搜索参数的默认关联搜索参数 */
 	Set<ParameterField<PT, SCT, RT>> myOwnedParameterFields; /* 包括当前搜索参数子级的和所有继承的父级搜索参数的搜索器 */
 	Set<AbsSearcher<PT, SCT, RT, ?>> myOwnedSearchers; /* 包括当前搜索参数子级的和所有继承的父级搜索参数的搜索器 */
-	Set<PT> myOwnedDefaultJoinedParameters; /* 包括当前搜索参数子级的和所有继承的父级搜索参数的默认关联搜索参数 */
 	
 	/**
 	 * 获取表名称
@@ -693,6 +695,7 @@ implements Cloneable {
 	
 	/**
 	 * 设置当前搜索参数包含的所有搜索参数字段进行输出
+	 * <br/> 包括继承的
 	 * 
 	 * @param isOutput 是否输出, true表示输出, false表示不输出
 	 * 
@@ -865,15 +868,15 @@ implements Cloneable {
 		this.usingJoinWorker = joinWorker; /* 设置关联搜索参数的关联处理器*/
 		// 设置关联起点字段的属性
 		fromParamField.isMappedFromField = true;
-		if(toParam.paramType == ParameterType.DEFAULT_JOIN) {
+		if(toParam.isDefaultJoinParameter()) {
 			fromParamField.usingSearcher = null; /* 作为非动态关联的默认关联起点字段的搜索器总为null */
 		}
-		// 如果当前搜索参数是继承关联搜索参数(某个搜索参数的父类), 则需要向其所有关联起点搜索参数添加包含的搜索器以及搜索参数字段到已拥有列表中(父类的搜索器子类都应该有)
+		// 如果当前搜索参数是继承关联搜索参数(某个搜索参数的父类), 则需要向其所有关联起点搜索参数添加包含的搜索参数对象到其已拥有搜索参数对象列表中(父类的搜索器子类都应该有)
 		toParam.syncInheritJoinParamOwnedParameterObjs();
 	}
 
 	/**
-	 * 同步当前继承搜索参数的拥有字段和搜索器
+	 * 同步当前继承搜索参数包含的默认关联搜索参数和拥有字段以及搜索器的引用到所有子级搜索参数中(包括多重)
 	 * <br/> 如果当前搜索参数不是继承关联的搜索参数则无处理
 	 * 
 	 * @author linjie
@@ -881,9 +884,15 @@ implements Cloneable {
 	 */
 	final void syncInheritJoinParamOwnedParameterObjs() {
 		// 如果当前搜索参数是继承关联搜索参数(某个搜索参数的父类), 则需要向其所有关联起点搜索参数添加包含的搜索器以及搜索参数字段到已拥有列表中(父类的搜索器子类都应该有)
-		PT currentParam = (PT) this;
-		while(currentParam.paramType == ParameterType.INHERIT_JOIN) {
+		PT thisParam =  (PT) this;
+		PT currentParam = thisParam;
+		while(currentParam.isInheritJoinParameter()) {
 			PT mappedFromParam = currentParam.usingJoinWorker.mappedFromParam;
+			// 继承的搜索参数
+			if(mappedFromParam.myOwnedInheritedFromParameters == null) {
+				mappedFromParam.myOwnedInheritedFromParameters = new HashSet<PT>();
+			}
+			mappedFromParam.myOwnedInheritedFromParameters.add(thisParam);
 			// 搜索器
 			if(mappedFromParam.myOwnedSearchers == null) {
 				mappedFromParam.myOwnedSearchers = new HashSet<AbsSearcher<PT, SCT, RT, ?>>();
@@ -1075,7 +1084,7 @@ implements Cloneable {
 			searchParam.hasFieldOutput = true;
 			// 继承类型父类字段设置输出等于子类字段设置输出
 			PT currentParam = searchParam;
-			while(currentParam.paramType == ParameterType.INHERIT_JOIN) {
+			while(currentParam.isInheritJoinParameter()) {
 				currentParam.hasFieldOutput = true;
 				if(currentParam.usingJoinWorker == null) {
 					break;
@@ -1103,7 +1112,7 @@ implements Cloneable {
 					searchParam.hasFieldOutput = false;
 					// 继承类型父类字段设置不输出等于子类字段设置不输出
 					PT currentParam = searchParam;
-					while(currentParam.paramType == ParameterType.INHERIT_JOIN) {
+					while(currentParam.isInheritJoinParameter()) {
 						currentParam.hasFieldOutput = false;
 						if(currentParam.usingJoinWorker == null) {
 							break;
@@ -1145,6 +1154,7 @@ implements Cloneable {
 		cloneParam.mySearchers = null;
 		cloneParam.myOwnedParameterFields = null;
 		cloneParam.myOwnedSearchers = null;
+		cloneParam.myOwnedInheritedFromParameters = null;
 		cloneParam.myOwnedDefaultJoinedParameters = null;
 		// 克隆搜索参数字段
 		for(ParameterField<PT, SCT, RT> paramField : this.myParameterFields.values()) {
@@ -1200,13 +1210,13 @@ implements Cloneable {
 			cloneJoinParam.usingJoinWorker = newJoinWorker;
 			// 设置关联起点字段的属性, 以及注册关联搜索参数
 			fromCloneParamField.isMappedFromField = true;
-			if(cloneJoinParam.paramType == ParameterType.DEFAULT_JOIN) {
+			if(cloneJoinParam.isDefaultJoinParameter()) {
 				fromCloneParamField.usingSearcher = null; /* 同init中的设置 */
 				cloneParam.registerDefaultJoinedParameter(cloneJoinParam);
 			} else { /* 不是默认关联就是继承关联 */
 				cloneParam.registerInheritJoinedParameter(cloneJoinParam);
 			}
-			// 同步继承搜索参数的拥有字段和搜索器
+			// 同步继承搜索参数的包含的搜索参数对象到子类搜索参数中
 			cloneJoinParam.syncInheritJoinParamOwnedParameterObjs();
 		}
 		/* 不用克隆动态关联搜索参数 */
@@ -1297,6 +1307,21 @@ implements Cloneable {
 	protected final ParameterContext<PT, SCT, RT> getParameterContext() {
 		assertHasInit();
 		return this.paramContext;
+	}
+	
+	/**
+	 * 获取当前搜索参数继承的所有父级搜索参数
+	 * @return 当前搜索参数继承的所有父级搜索参数, 没有则返回空列表, 不会为null
+	 * 
+	 * @author linjie
+	 * @since 1.0.2
+	 */
+	protected final Collection<PT> getInheritedFromParameters()  {
+		this.assertHasInit();
+		if(this.myOwnedInheritedFromParameters != null && ! this.myOwnedInheritedFromParameters.isEmpty()) {
+			return Collections.unmodifiableCollection(this.myOwnedInheritedFromParameters);
+		}
+		return Collections.emptyList();
 	}
 	
 	@Override
