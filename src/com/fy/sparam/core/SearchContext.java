@@ -1,6 +1,7 @@
 package com.fy.sparam.core;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -572,8 +573,8 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * 获取对应键的搜索内容键值对
 		 * 
 		 * @param key 指定的搜索内容键
-		 * @return 对应键的搜索内容键值对
-		 * @throws Exception 
+		 * @return 对应键的搜索内容键值对, 如果没有则返回空列表
+		 * @throws Exception 如果键为null则抛出异常
 		 * 
 		 * @author linjie
 		 * @since 1.0.2
@@ -584,6 +585,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * 清除指定键搜索内容键值对
 		 * 
 		 * @param key 自定义的搜索内容Key, 不能为null
+		 * @throws Exception 如果键为null则抛出异常
 		 * 
 		 * @author linjie
 		 * @since 1.0.2
@@ -644,16 +646,20 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 	 * 根据搜索内容的key获取它对应的值
 	 * 
 	 * @param key 搜索内容的key, 由parameter实现类自定义
-	 * @return key对应的搜索内容值, 如果没有则返回null
+	 * @return key对应的搜索内容值, 如果没有则返回空列表
 	 *
 	 * @author linjie
 	 * @since 1.0.2
 	 */
 	final List<SCT> getSearchEntry(String key) {
 		if(key == null || key.isEmpty()) {
-			throw new IllegalArgumentException("移除搜索内容需要指定键");
+			throw new IllegalArgumentException("获取搜索内容需要指定键");
 		}
-		return this.contents.get(key);
+		List<SCT> vals = this.contents.get(key);
+		if(vals != null) {
+			return vals;
+		}
+		return Collections.emptyList();
 	}
 	
 	/**

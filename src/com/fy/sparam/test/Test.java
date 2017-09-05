@@ -1,7 +1,6 @@
 package com.fy.sparam.test;
 
 import com.fy.sparam.product.SqlParameter;
-import com.fy.sparam.product.SqlParameter.BuildMode;
 
 public class Test {
 
@@ -36,7 +35,7 @@ public class Test {
 		long start = System.nanoTime();
 //		cParam.createDate.setOutput(true);
 		cParam.email.eq("1");
-		System.out.println(cParam.build(BuildMode.SELECT_COUNT).getSql());
+		System.out.println(cParam.build().getSql());
 		System.out.println(System.nanoTime() - start);
 	}
 }

@@ -160,9 +160,15 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 	
 			@Override
 			public void build(SqlParameter param, SqlResult result, Object... args) throws Exception {
+				param.setAllMyFieldOutput(true);
 				String tableAlias = param.getTableAlias();
+				StringBuilder tableAliasesBuilder = new StringBuilder(tableAlias).append(".*");
+				Collection<SqlParameter> inheritedFromParams = param.getInheritedFromParameters();
+				for(SqlParameter inheritedFromParam : inheritedFromParams) {
+					tableAliasesBuilder.append(",").append(inheritedFromParam.getTableAlias()).append(".*");
+				}
 				result.addSqlPiece(new SqlPiece(StringUtils.concatAsStr(
-						"SELECT ", tableAlias, ".*")));
+						"SELECT ", tableAliasesBuilder.toString())));
 			}
 		}),
 		
@@ -367,8 +373,11 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 	
 			@Override
 			public void build(SqlParameter param, SqlResult result, Object... args) throws Exception {
-				result.addSqlPiece(new SqlPiece("WHERE "));
-				result.addSqlPieces(param.getSearchEntry(SqlMember.WHERE.name()));
+				List<SqlPiece> whereSqlPiece = param.getSearchEntry(SqlMember.WHERE.name());
+				if(! whereSqlPiece.isEmpty()) {
+					result.addSqlPiece(new SqlPiece("WHERE "));
+					result.addSqlPieces(whereSqlPiece);
+				}
 			}
 		}),
 		
