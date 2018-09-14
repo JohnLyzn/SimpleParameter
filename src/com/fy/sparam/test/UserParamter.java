@@ -32,39 +32,39 @@ public class UserParamter extends SqlParameter {
 	@FieldMeta(name = "name")
 	public ISearchable<String> name;
 	
-	/**
-	 * 用户邮箱
-	 * 
-	 * @author hongweiquan
-	 * @since 4.5.0
-	 */
-	@FieldMeta(name = "email")
-	public ISearchable<String> email;
-	
-	/**
-	 * 用户联系电话
-	 * 
-	 * @author hongweiquan
-	 * @since 4.5.0
-	 */
-	@FieldMeta(name = "tel")
-	public ISearchable<String> tel;
-	
-	/**
-	 * 吾托帮用户账号
-	 * 
-	 * @author hongweiquan
-	 * @since 4.5.0
-	 */
-	@FieldMeta(name = "wtb_account")
-	public ISearchable<String> wtbAccount;
-	
-	/**
-	 * 吾托帮用户ID
-	 * 
-	 * @author hongweiquan
-	 * @since 4.5.0
-	 */
-	@FieldMeta(name = "wtb_user_id")
-	public ISearchable<String> wtbUserID;
+//	/**
+//	 * 用户邮箱
+//	 * 
+//	 * @author hongweiquan
+//	 * @since 4.5.0
+//	 */
+//	@FieldMeta(name = "email")
+//	public ISearchable<String> email;
+//	
+//	/**
+//	 * 用户联系电话
+//	 * 
+//	 * @author hongweiquan
+//	 * @since 4.5.0
+//	 */
+//	@FieldMeta(name = "tel")
+//	public ISearchable<String> tel;
+//	
+//	/**
+//	 * 吾托帮用户账号
+//	 * 
+//	 * @author hongweiquan
+//	 * @since 4.5.0
+//	 */
+//	@FieldMeta(name = "wtb_account")
+//	public ISearchable<String> wtbAccount;
+//	
+//	/**
+//	 * 吾托帮用户ID
+//	 * 
+//	 * @author hongweiquan
+//	 * @since 4.5.0
+//	 */
+//	@FieldMeta(name = "wtb_user_id")
+//	public ISearchable<String> wtbUserID;
 }

@@ -6,9 +6,9 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import com.fy.sparam.core.AbsParameter;
 import com.fy.sparam.core.AbsParameter.IInitializor;
@@ -88,12 +88,13 @@ implements IInitializor<PT, SCT, RT> {
 		if(setFieldParam == null) {
 			setFieldParam = param;
 		}
-		List<Class<PT>> meetBeforeParamClasses = (List<Class<PT>>) args[4];
+		Set<Class<PT>> meetBeforeParamClasses = (Set<Class<PT>>) args[4];
 		if(meetBeforeParamClasses == null) {
-			meetBeforeParamClasses = new LinkedList<Class<PT>>(); 
+			meetBeforeParamClasses = new HashSet<Class<PT>>();
+			meetBeforeParamClasses.add(paramClass);
 		}
 		// 获取父级的搜索参数, 如果父级搜索参数具有@TableMeta且当前搜索参数没有@InheritMeta则抛出异常
-		Class<?> superClass = paramClass.getSuperclass();
+		Class<PT> superClass = (Class<PT>) paramClass.getSuperclass();
 		boolean thisHasInheriteConfig = paramClass.isAnnotationPresent(InheritMeta.class);
 		boolean parentHasTableConfig = superClass.isAnnotationPresent(TableMeta.class);
 		if(parentHasTableConfig && !thisHasInheriteConfig) {
@@ -106,10 +107,13 @@ implements IInitializor<PT, SCT, RT> {
 			if(meetBeforeParamClasses.contains(superClass)) {
 				throw new IllegalArgumentException(format(
 						"搜索参数%s与搜索参数%s存在关联环的关系, 目前不支持此种关系的搜索参数初始化, 请重新设置. PS: 可以考虑使用动态关联.", 
-						this.getClass().getName(), paramClass.getName()));
+						superClass.getName(), paramClass.getName()));
 			}
+			// 新分支, 另起列表, 把前面的加入
+			Set<Class<PT>> meetBeforeParamClasses1 = new HashSet<Class<PT>>();
 			// 不存在的加入到已经遇过的列表中
-			meetBeforeParamClasses.add((Class<PT>) superClass);
+			meetBeforeParamClasses1.addAll(meetBeforeParamClasses);
+			meetBeforeParamClasses1.add(superClass);
 			// 继承关联注解配置
 			InheritMeta inheritMeta = paramClass.getAnnotation(InheritMeta.class);
 			String inheritByName = inheritMeta.inheritBy();
@@ -121,9 +125,9 @@ implements IInitializor<PT, SCT, RT> {
 			// 生成父级关联搜索参数实例, 并进行初始化, 关联起点字段名称和关联终点字段名称一致
 			PT inheritJoinedParam = (PT) superClass.newInstance();
 			paramContext.registerInheritJoinedParameter(param, inheritJoinedParam,
-					inheritMeta.joinType(), inheritMeta.relationType(),
-					inheritFromFieldName, inheritByName,
-					searcherClass, basicParamClass, superClass, param, meetBeforeParamClasses); 
+					inheritMeta.joinType(), inheritMeta.relationType(), inheritFromFieldName, inheritByName,
+					searcherClass, basicParamClass, superClass, param,
+					meetBeforeParamClasses1); 
 			/* 用来设置实例字段的值不是父类, 而是最后的子类 */
 		}
 		// 初始化当前搜索参数中的搜索器或默认搜索参数成员
@@ -177,26 +181,30 @@ implements IInitializor<PT, SCT, RT> {
 					} else if(AbsParameter.class.isAssignableFrom(typeClass)) { /* 生成默认关联搜索参数实例 */
 						// 为搜索参数类型的类属性初始化为默认关联搜索参数
 						if(field.isAnnotationPresent(JoinParam.class) && field.isAnnotationPresent(FieldMeta.class)) {
+							Class<PT> defaultJoinParamClass = (Class<PT>) typeClass;
 							// 验证环关联, 不然死循环
-							if(meetBeforeParamClasses.contains(paramClass)) {
+							if(meetBeforeParamClasses.contains(defaultJoinParamClass)) {
 								throw new IllegalArgumentException(format(
 										"搜索参数%s与搜索参数%s存在关联环的关系, 目前不支持此种关系的搜索参数初始化, 请重新设置. PS: 可以考虑使用动态关联.", 
-										this.getClass().getName(), paramClass.getName()));
+										defaultJoinParamClass.getName(), paramClass.getName()));
 							}
+							// 新分支, 另起列表, 把前面的加入
+							Set<Class<PT>> meetBeforeParamClasses1 = new HashSet<Class<PT>>();
 							// 不存在的加入到已经遇过的列表中
-							meetBeforeParamClasses.add(paramClass);
+							meetBeforeParamClasses1.addAll(meetBeforeParamClasses);
+							meetBeforeParamClasses1.add(defaultJoinParamClass);
 							// 初始化默认关联搜索参数
 							FieldMeta fieldMeta = field.getAnnotation(FieldMeta.class);
-							ParameterField<PT, SCT, RT> paramField = new ParameterField<PT, SCT, RT>(); /* 这个关联字段是数据 */
+							ParameterField<PT, SCT, RT> paramField = new ParameterField<PT, SCT, RT>();
 							paramField.addExtra(PF_EXTRA_FIELD, field);
 							paramContext.registerParameterField(param, paramField, 
 									fieldName, fieldMeta.name(), fieldMeta.alias(), null);
 							JoinParam joinParam = field.getAnnotation(JoinParam.class);
-							PT defaultJoinedParam = (PT) typeClass.newInstance();
+							PT defaultJoinedParam = defaultJoinParamClass.newInstance();
 							paramContext.registerDefaultJoinedParameter(param, defaultJoinedParam,
-									joinParam.joinType(), joinParam.relationType(),
-									fieldName, joinParam.mappedBy(),
-									searcherClass, basicParamClass, typeClass, defaultJoinedParam, meetBeforeParamClasses);
+									joinParam.joinType(), joinParam.relationType(), fieldName, joinParam.mappedBy(),
+									searcherClass, basicParamClass, typeClass, defaultJoinedParam,
+									meetBeforeParamClasses1);
 							// 设置搜索参数成员属性的值
 							field.set(setFieldParam, defaultJoinedParam);
 						} else {

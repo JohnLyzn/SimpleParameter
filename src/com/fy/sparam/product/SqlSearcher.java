@@ -8,6 +8,7 @@ import java.util.List;
 import com.fy.sparam.core.AbsSearcher;
 import com.fy.sparam.core.SearchContext.ISearchable;
 import com.fy.sparam.product.SqlParameter.BuildMode;
+import com.fy.sparam.product.SqlParameter.SqlMember;
 import com.fy.sparam.test.StringUtils;
 
 public class SqlSearcher<T> extends AbsSearcher<SqlParameter, SqlPiece, SqlResult, T> {
@@ -22,9 +23,9 @@ public class SqlSearcher<T> extends AbsSearcher<SqlParameter, SqlPiece, SqlResul
 		}
 		SqlPiece sqlPiece = new SqlPiece(
 				StringUtils.concatAsStr(this.getWholeDbFieldName(),
-						" IN (", generatePlaceHolder(values.size()),") "),
-				translateEnums(values));
-		this.addSearchEntry(SqlParameter.WHERE, sqlPiece);
+						" IN (", this.generatePlaceHolder(values.size()),") "),
+						this.translateEnums(values));
+		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 	}
 
 	@Override
@@ -37,9 +38,9 @@ public class SqlSearcher<T> extends AbsSearcher<SqlParameter, SqlPiece, SqlResul
 		}
 		SqlPiece sqlPiece = new SqlPiece(
 				StringUtils.concatAsStr(this.getWholeDbFieldName(),
-						" NOT IN (", generatePlaceHolder(values.size()),") "),
-				translateEnums(values));
-		this.addSearchEntry(SqlParameter.WHERE, sqlPiece);
+						" NOT IN (", this.generatePlaceHolder(values.size()),") "),
+						this.translateEnums(values));
+		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 		
 	}
 
@@ -50,8 +51,8 @@ public class SqlSearcher<T> extends AbsSearcher<SqlParameter, SqlPiece, SqlResul
 		}
 		SqlPiece sqlPiece = new SqlPiece(
 				StringUtils.concatAsStr(this.getWholeDbFieldName()," = ? "),
-				translateEnum(value));
-		this.addSearchEntry(SqlParameter.WHERE, sqlPiece);
+				this.translateEnum(value));
+		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 		
 	}
 
@@ -62,8 +63,8 @@ public class SqlSearcher<T> extends AbsSearcher<SqlParameter, SqlPiece, SqlResul
 		}
 		SqlPiece sqlPiece = new SqlPiece(
 				StringUtils.concatAsStr(this.getWholeDbFieldName(), " <> ? "),
-				translateEnum(value));
-		this.addSearchEntry(SqlParameter.WHERE, sqlPiece);
+				this.translateEnum(value));
+		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 		
 	}
 
@@ -74,8 +75,8 @@ public class SqlSearcher<T> extends AbsSearcher<SqlParameter, SqlPiece, SqlResul
 		}
 		SqlPiece sqlPiece = new SqlPiece(
 				StringUtils.concatAsStr(this.getWholeDbFieldName()," BETWEEN ? AND ? "),
-				translateEnum(from), translateEnum(to));
-		this.addSearchEntry(SqlParameter.WHERE, sqlPiece);
+				this.translateEnum(from), this.translateEnum(to));
+		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 		
 	}
 
@@ -86,8 +87,8 @@ public class SqlSearcher<T> extends AbsSearcher<SqlParameter, SqlPiece, SqlResul
 		}
 		SqlPiece sqlPiece = new SqlPiece(
 				StringUtils.concatAsStr(this.getWholeDbFieldName()," < ? "),
-				translateEnum(value));
-		this.addSearchEntry(SqlParameter.WHERE, sqlPiece);
+				this.translateEnum(value));
+		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 		
 	}
 
@@ -98,8 +99,8 @@ public class SqlSearcher<T> extends AbsSearcher<SqlParameter, SqlPiece, SqlResul
 		}
 		SqlPiece sqlPiece = new SqlPiece(
 				StringUtils.concatAsStr(this.getWholeDbFieldName()," >= ? "),
-				translateEnum(value));
-		this.addSearchEntry(SqlParameter.WHERE, sqlPiece);
+				this.translateEnum(value));
+		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 		
 	}
 
@@ -110,8 +111,8 @@ public class SqlSearcher<T> extends AbsSearcher<SqlParameter, SqlPiece, SqlResul
 		}
 		SqlPiece sqlPiece = new SqlPiece(
 				StringUtils.concatAsStr(this.getWholeDbFieldName(), " > ? "),
-				translateEnum(value));
-		this.addSearchEntry(SqlParameter.WHERE, sqlPiece);
+				this.translateEnum(value));
+		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 		
 	}
 
@@ -122,8 +123,8 @@ public class SqlSearcher<T> extends AbsSearcher<SqlParameter, SqlPiece, SqlResul
 		}
 		SqlPiece sqlPiece = new SqlPiece(
 				StringUtils.concatAsStr(this.getWholeDbFieldName(), " <= ? "),
-				translateEnum(value));
-		this.addSearchEntry(SqlParameter.WHERE, sqlPiece);
+				this.translateEnum(value));
+		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 		
 	}
 	
@@ -135,7 +136,7 @@ public class SqlSearcher<T> extends AbsSearcher<SqlParameter, SqlPiece, SqlResul
 		SqlPiece sqlPiece = new SqlPiece(
 				StringUtils.concatAsStr(this.getWholeDbFieldName(), " LIKE ? "),
 				value);
-		this.addSearchEntry(SqlParameter.WHERE, sqlPiece);
+		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 		
 	}
 
@@ -147,7 +148,7 @@ public class SqlSearcher<T> extends AbsSearcher<SqlParameter, SqlPiece, SqlResul
 		SqlPiece sqlPiece = new SqlPiece(
 				StringUtils.concatAsStr(this.getWholeDbFieldName(), " NOT LIKE ? "),
 				value);
-		this.addSearchEntry(SqlParameter.WHERE, sqlPiece);
+		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 		
 	}
 	
@@ -155,16 +156,14 @@ public class SqlSearcher<T> extends AbsSearcher<SqlParameter, SqlPiece, SqlResul
 	public void onIsNull() throws Exception {
 		SqlPiece sqlPiece = new SqlPiece(
 				StringUtils.concatAsStr(this.getWholeDbFieldName(), " IS NULL "));
-		this.addSearchEntry(SqlParameter.WHERE, sqlPiece);
-		
+		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 	}
 
 	@Override
 	public void onIsNotNull() throws Exception {
 		SqlPiece sqlPiece = new SqlPiece(
 				StringUtils.concatAsStr(this.getWholeDbFieldName(), " IS NOT NULL "));
-		this.addSearchEntry(SqlParameter.WHERE, sqlPiece);
-		
+		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 	}
 	
 	@Override
@@ -180,7 +179,7 @@ public class SqlSearcher<T> extends AbsSearcher<SqlParameter, SqlPiece, SqlResul
 		SqlPiece sqlPiece = new SqlPiece(
 				StringUtils.concatAsStr(this.getWholeDbFieldName(),
 						" IN (", sql, ") "));
-		this.addSearchEntry(SqlParameter.WHERE, sqlPiece);
+		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 	}
 
 	@Override
@@ -196,15 +195,15 @@ public class SqlSearcher<T> extends AbsSearcher<SqlParameter, SqlPiece, SqlResul
 		SqlPiece sqlPiece = new SqlPiece(
 				StringUtils.concatAsStr(this.getWholeDbFieldName(),
 						" NOT IN (", sql,") "));
-		this.addSearchEntry(SqlParameter.WHERE, sqlPiece);
+		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 	}
 
 	@Override
 	public void onIn(ISearchable<?> searchField) throws Exception {
 		SqlPiece sqlPiece = new SqlPiece(
 				StringUtils.concatAsStr(this.getWholeDbFieldName(),
-						" IN (", this.getWholeDbFieldName(),") "));
-		this.addSearchEntry(SqlParameter.WHERE, sqlPiece);
+						" IN (", searchField.getWholeDbFieldName(),") "));
+		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 	}
 
 	@Override
@@ -212,7 +211,7 @@ public class SqlSearcher<T> extends AbsSearcher<SqlParameter, SqlPiece, SqlResul
 		SqlPiece sqlPiece = new SqlPiece(
 				StringUtils.concatAsStr(this.getWholeDbFieldName(),
 						" NOT IN (", searchField.getWholeDbFieldName(),") "));
-		this.addSearchEntry(SqlParameter.WHERE, sqlPiece);
+		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 		
 	}
 	
@@ -221,7 +220,7 @@ public class SqlSearcher<T> extends AbsSearcher<SqlParameter, SqlPiece, SqlResul
 		SqlPiece sqlPiece = new SqlPiece(
 				StringUtils.concatAsStr(this.getWholeDbFieldName(),
 						" = ", searchField.getWholeDbFieldName(), " "));
-		this.addSearchEntry(SqlParameter.WHERE, sqlPiece);
+		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 		
 	}
 
@@ -230,7 +229,7 @@ public class SqlSearcher<T> extends AbsSearcher<SqlParameter, SqlPiece, SqlResul
 		SqlPiece sqlPiece = new SqlPiece(
 				StringUtils.concatAsStr(this.getWholeDbFieldName(),
 						" <> ", searchField.getWholeDbFieldName(), " "));
-		this.addSearchEntry(SqlParameter.WHERE, sqlPiece);
+		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 		
 	}
 
@@ -241,7 +240,7 @@ public class SqlSearcher<T> extends AbsSearcher<SqlParameter, SqlPiece, SqlResul
 				StringUtils.concatAsStr(this.getWholeDbFieldName(),
 						" BETWEEN ", from.getWholeDbFieldName(),
 						" AND ", to.getWholeDbFieldName(), " "));
-		this.addSearchEntry(SqlParameter.WHERE, sqlPiece);
+		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 		
 	}
 	
@@ -250,7 +249,7 @@ public class SqlSearcher<T> extends AbsSearcher<SqlParameter, SqlPiece, SqlResul
 		SqlPiece sqlPiece = new SqlPiece(
 				StringUtils.concatAsStr(this.getWholeDbFieldName(),
 						" < ", searchField.getWholeDbFieldName(), " "));
-		this.addSearchEntry(SqlParameter.WHERE, sqlPiece);
+		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 	}
 
 	@Override
@@ -259,7 +258,7 @@ public class SqlSearcher<T> extends AbsSearcher<SqlParameter, SqlPiece, SqlResul
 		SqlPiece sqlPiece = new SqlPiece(
 				StringUtils.concatAsStr(this.getWholeDbFieldName(),
 						" >= ", searchField.getWholeDbFieldName(), " "));
-		this.addSearchEntry(SqlParameter.WHERE, sqlPiece);
+		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 		
 	}
 
@@ -269,7 +268,7 @@ public class SqlSearcher<T> extends AbsSearcher<SqlParameter, SqlPiece, SqlResul
 		SqlPiece sqlPiece = new SqlPiece(
 				StringUtils.concatAsStr(this.getWholeDbFieldName(),
 						" > ", searchField.getWholeDbFieldName(), " "));
-		this.addSearchEntry(SqlParameter.WHERE, sqlPiece);
+		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 		
 	}
 
@@ -279,7 +278,7 @@ public class SqlSearcher<T> extends AbsSearcher<SqlParameter, SqlPiece, SqlResul
 		SqlPiece sqlPiece = new SqlPiece(
 				StringUtils.concatAsStr(this.getWholeDbFieldName(),
 						" <= ", searchField.getWholeDbFieldName(), " "));
-		this.addSearchEntry(SqlParameter.WHERE, sqlPiece);
+		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 		
 	}
 	
@@ -288,7 +287,7 @@ public class SqlSearcher<T> extends AbsSearcher<SqlParameter, SqlPiece, SqlResul
 		SqlPiece sqlPiece = new SqlPiece(
 				StringUtils.concatAsStr(this.getWholeDbFieldName(),
 						" LIKE ", searchField.getWholeDbFieldName(), " "));
-		this.addSearchEntry(SqlParameter.WHERE, sqlPiece);
+		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 		
 	}
 
@@ -297,32 +296,32 @@ public class SqlSearcher<T> extends AbsSearcher<SqlParameter, SqlPiece, SqlResul
 		SqlPiece sqlPiece = new SqlPiece(
 				StringUtils.concatAsStr(this.getWholeDbFieldName(), 
 						" NOT LIKE ", searchField.getWholeDbFieldName(), " "));
-		this.addSearchEntry(SqlParameter.WHERE, sqlPiece);
+		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 		
 	}
 	
 	@Override
 	public void onDelimiterStart(Object... params) throws Exception {
 		SqlPiece sqlPiece = new SqlPiece(" ( ");
-		this.addSearchEntry(SqlParameter.WHERE, sqlPiece);
+		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 	}
 
 	@Override
 	public void onDelimiterEnd(Object... params) throws Exception {
 		SqlPiece sqlPiece = new SqlPiece(" ) ");
-		this.addSearchEntry(SqlParameter.WHERE, sqlPiece);
+		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 	}
 	
 	@Override
 	protected void onAnd() throws Exception {
 		SqlPiece sqlPiece = new SqlPiece("AND ");
-		this.addSearchEntry(SqlParameter.WHERE, sqlPiece);
+		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 	}
 
 	@Override
 	protected void onOr() throws Exception {
 		SqlPiece sqlPiece = new SqlPiece("OR ");
-		this.addSearchEntry(SqlParameter.WHERE, sqlPiece);
+		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 	}
 	
 	@Override
@@ -362,7 +361,7 @@ public class SqlSearcher<T> extends AbsSearcher<SqlParameter, SqlPiece, SqlResul
 	 * <br/> 对集合类型的进行处理
 	 * <br/> 转换的实现是调用translateEnum()方法, 参考其实现细节.
 	 * 
-	 * @param enums 要转换的enum类型的值.
+	 * @param enumVals 要转换的enum类型的值的集合.
 	 * @return 转换或未转换的对象列表, 即使不是enum类型也会构建新的列表然后返回原来的值.
 	 * @throws Exception 转换则抛出异常
 	 *
@@ -374,9 +373,7 @@ public class SqlSearcher<T> extends AbsSearcher<SqlParameter, SqlPiece, SqlResul
 			List<Object> results = new LinkedList<Object>();
 			for(T enumVal : enumVals) {
 				Object result = translateEnum(enumVal);
-				if(result != null) {
-					results.add(result);
-				}
+				results.add(result);
 			}
 			return results;
 		}

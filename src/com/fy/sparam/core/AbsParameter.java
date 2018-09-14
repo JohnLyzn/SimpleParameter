@@ -7,6 +7,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -14,6 +15,7 @@ import java.util.Set;
 
 import com.fy.sparam.core.JoinWorker.JoinType;
 import com.fy.sparam.core.JoinWorker.RelationType;
+import com.fy.sparam.core.ParameterContext.IParameterObj;
 import com.fy.sparam.core.SearchContext.IRelationalable;
 import com.fy.sparam.core.SearchContext.ISearchable;
 import com.fy.sparam.core.SearchContext.ITransformable;
@@ -43,7 +45,7 @@ import com.fy.sparam.util.StringUtils;
 @SuppressWarnings("unchecked")
 public abstract class AbsParameter<PT extends AbsParameter<PT, SCT, RT>, SCT, RT>
 extends SearchContentSource<SCT>
-implements Cloneable {
+implements IParameterObj, Cloneable {
 
 	/**
 	 * 搜索参数初始化接口
@@ -57,7 +59,7 @@ implements Cloneable {
 	public interface IInitializor<PT extends AbsParameter<PT, SCT, RT>, SCT, RT> {
 
 		/**
-		 * 获取字段类型转换器集合
+		 * 获取搜索字段类型转换器集合
 		 * 
 		 * @return 字段类型转换器的Map, key是字段类型字节码, value是字段类型转换器实现类实例
 		 * 
@@ -67,6 +69,7 @@ implements Cloneable {
 		Map<Class<?>, ITransformable<?>> getSearcherFieldTransformers();
 		
 		/**
+		 * 获取搜索字段的类型字节码
 		 * 
 		 * @return 如果无法确定类型将返回null
 		 * 
@@ -180,6 +183,7 @@ implements Cloneable {
 	JoinWorker<PT, SCT, RT> usingJoinWorker; /* 如果当前搜索参数不是关联的搜索参数则为null */
 	// 当前搜索参数的标志信息
 	ParameterType paramType; /* 搜索参数类型 */
+	String path;
 	boolean hasInit; /* 当前搜索参数是否完成了初始化 */
 	boolean hasFieldSearched; /* 当前搜素参数是否有搜索器发起搜索操作 */
 	boolean hasFieldOutput; /* 当前搜索参数是否有搜索参数字段被设置为输出 */
@@ -321,9 +325,8 @@ implements Cloneable {
 			this.paramContext = new ParameterContext<PT, SCT, RT>(intializor);
 			// 这是个原型
 			this.paramContext.isPrototype = true;
-			// 当前搜索参数作根
-			this.paramType = ParameterType.ROOT;
 			// 当前搜索参数作为根搜索参数
+			this.paramType = ParameterType.ROOT;
 			this.paramContext.registerRootParameter(thisParam);
 			// 初始化搜索参数对象
 			this.paramContext.intializor.initParameter(thisParam, paramContext, args);
@@ -333,15 +336,15 @@ implements Cloneable {
 			// 生成搜索参数字段相对与根搜索参数的路径
 			this.paramContext.generateAllParameterFieldPath();
 			// 生成全局不会冲突的表别名(包括继承, 默认关联的搜索参数的表别名)
-			this.paramContext.generateGlobalNonConflictTableAlias(0);
+			this.paramContext.generateGlobalNonConflictTableAlias(null, 0);
 		}
 	}
 
 	/**
 	 * 动态关联其它搜索参数
-	 * <br/> 当前搜索参数必须是根搜索参数.
+	 * <br/> 如果当前搜索参数/指定关联的搜索参数不是根搜索参数会自动找到根搜索参数并进行关联.
 	 * 
-	 * @param param 要动态关联的搜索参数实例, 必须是根搜索参数, 不能为null.
+	 * @param param 要动态关联的搜索参数实例, 不能为null.
 	 * @param joinType 关联类型, 如果为null则默认为{@link JoinType.INNER_JOIN}
 	 * @param relationType 关联关系类型, 如果为null默认为{@link RelationType.EQ}
 	 * @param from 属于当前搜索参数管理范围内的搜索器, 作为关联起点, 不能为null
@@ -357,14 +360,14 @@ implements Cloneable {
 		if(param == null || ! param.hasInit) {
 			throw new IllegalArgumentException("动态关联的搜索参数为null, 或没没完成初始化");
 		}
-		if(this.paramType != ParameterType.ROOT || param.paramType != ParameterType.ROOT) {
-			throw new IllegalArgumentException("发起动态关联方法调用和动态关联的搜索参数不为根搜索参数");
-		}
-		if(this.usingJoinWorker != null || param.usingJoinWorker != null) {
-			throw new IllegalArgumentException("发起动态关联方法调用的搜索参数已动态关联到其它搜索参数, 或指定动态关联的搜索参数已经进行过关联了");
-		}
 		if(from == null || to == null) {
 			throw new IllegalArgumentException("动态关联的起点搜索器或终点搜索器为null");
+		}
+		PT fromRootParam = this.paramContext.rootParam;
+		PT toRootParam = param.paramContext.rootParam;
+		if(param.paramContext.dynamicJoinParamContextPool != null
+				&& ! param.paramContext.dynamicJoinParamContextPool.isEmpty()) {
+			throw new IllegalArgumentException("发起动态关联方法调用的搜索参数已动态关联到其它搜索参数, 不能重复关联");
 		}
 		// 默认关联关系和连接类型
 		if(joinType == null) {
@@ -375,42 +378,43 @@ implements Cloneable {
 		}
 		// 转换成实际类型
 		AbsSearcher<PT, SCT, RT, ?> fromSearcher = (AbsSearcher<PT, SCT, RT, ?>) from;
-		if(! this.paramContext.isReachableSeacher(fromSearcher)) {
+		if(! fromRootParam.paramContext.isReachableSeacher(fromSearcher)) {
 			throw new IllegalArgumentException("动态关联的起点搜索器必须可以被当前搜索参数管理");
 		}
 		AbsSearcher<PT, SCT, RT, ?> toSearcher = (AbsSearcher<PT, SCT, RT, ?>) to;
-		if(! param.paramContext.isReachableSeacher(toSearcher)) {
+		if(! toRootParam.paramContext.isReachableSeacher(toSearcher)) {
 			throw new IllegalArgumentException("动态关联的终点搜索器必须可以被动态关联的搜索参数管理");
 		}
 		// 选择最短关联路径的搜索参数, 起终点关联字段
-		ParameterField<PT, SCT, RT> fromParamField = this.paramContext
-				.getIndeedSearchParameterField(fromSearcher.belongParameterField);
-		ParameterField<PT, SCT, RT> toParamField = param.paramContext
-				.getIndeedSearchParameterField(toSearcher.belongParameterField);
+		ParameterField<PT, SCT, RT> fromParamField = fromRootParam.paramContext
+				.getIndeedSearchParameterField(fromSearcher.belongParameterField, null);
+		ParameterField<PT, SCT, RT> toParamField = toRootParam.paramContext
+				.getIndeedSearchParameterField(toSearcher.belongParameterField, null);
 		PT fromParam = fromParamField.belongParameter;
 		PT toParam = toParamField.belongParameter;
-		// 重新动态关联的搜索参数的表别名
-		toParam.paramContext.generateGlobalNonConflictTableAlias(this.paramContext.joinCounter);
 		// 缓存动态关联的搜索参数和原来的搜索参数上下文(包括了搜索上下文)
 		if(fromParam.paramContext.dynamicJoinParamContextPool == null) {
 			fromParam.paramContext.dynamicJoinParamContextPool = new HashMap<PT, ParameterContext<PT,SCT,RT>>();
 		}
-		fromParam.paramContext.dynamicJoinParamContextPool.put(param, toParam.paramContext);
+		fromParam.paramContext.dynamicJoinParamContextPool.put(toRootParam, toParam.paramContext);
 		// 注册为关联起点的搜索参数的动态关联的搜索参数
 		if(fromParam.myDynamicJoinedParams == null) {
 			fromParam.myDynamicJoinedParams = new HashMap<ParameterField<PT, SCT, RT>, PT>();
 		}
 		fromParam.myDynamicJoinedParams.put(fromParamField, toParam);
+		// 重新动态关联的搜索参数的表别名, 使用被关联的搜索参数中的计数器
+		toParam.paramContext.generateGlobalNonConflictTableAlias(fromParam.paramContext,
+				fromParam.paramContext.joinCounter);
 		// 在被动态关联的搜索参数树的搜索参数上下文中缓存实际被动态关联的搜索参数(不一定是根)
 		toParam.paramContext.realDynamicJoinParam = toParam;
 		// 重置动态关联搜索参数方的搜索参数上下文
 		for(PT toIncludeParam : toParam.paramContext.allParams) {
-			toIncludeParam.paramContext = this.paramContext;
+			toIncludeParam.paramContext = fromRootParam.paramContext;
 		}
 		// 反转最短关联路径的关联关系
 		JoinWorker<PT, SCT, RT> joinWorker = JoinWorker.build(fromParam, toParam, joinType, relationType,
 				fromParamField, toParamField);
-		toParam.paramContext.reverseParametersJoinDirection(toParam, param, joinWorker);
+		toParam.paramContext.reverseParametersJoinDirection(toParam, toRootParam, joinWorker);
 	}
 
 	/**
@@ -421,7 +425,7 @@ implements Cloneable {
 	 * @author linjie
 	 * @since 1.0.2
 	 */
-	public final Collection<PT> getDynamicJoinedParameter(String fromFieldPath) {
+	public final Collection<PT> getDynamicJoinedParameters(String fromFieldPath) {
 		this.assertHasInit();
 		if(this.paramContext.dynamicJoinParamContextPool == null
 				|| this.paramContext.dynamicJoinParamContextPool.isEmpty()) {
@@ -431,7 +435,7 @@ implements Cloneable {
 		for(Entry<PT, ParameterContext<PT, SCT, RT>> dynamicJoinedParamEntry : 
 			this.paramContext.dynamicJoinParamContextPool.entrySet()) {
 			if(dynamicJoinedParamEntry.getValue().realDynamicJoinParam
-				.usingJoinWorker.mappedFromField.fieldPath.equals(fromFieldPath)) {
+				.usingJoinWorker.mappedFromField.path.equals(fromFieldPath)) {
 				result.add(dynamicJoinedParamEntry.getKey());
 			}
 		}
@@ -446,7 +450,7 @@ implements Cloneable {
 	 * @author linjie
 	 * @since 1.0.2
 	 */
-	public final Collection<PT> getAllDynamicJoinedParameter() {
+	public final Collection<PT> getAllDynamicJoinedParameters() {
 		this.assertHasInit();
 		if(this.paramContext.dynamicJoinParamContextPool == null
 				|| this.paramContext.dynamicJoinParamContextPool.isEmpty()) {
@@ -463,25 +467,7 @@ implements Cloneable {
 	 * @since 1.0.2
 	 */
 	public final void unJoin() throws Exception {
-		// 未解绑前当前搜索参数使用的搜索参数上下文是包含动态关联搜索参数信息的(是关联起点搜索参数使用的上下文)
-		if(! this.paramContext.dynamicJoinParamContextPool.containsKey(this)) {
-			throw new IllegalArgumentException("当前搜索参数不是动态关联搜索参数");
-		}
-		ParameterContext<PT, SCT, RT> originalParamContext = this.paramContext.dynamicJoinParamContextPool.get(this);
-		this.paramContext.dynamicJoinParamContextPool.remove(this);
-		// 重置动态关联搜索参数树包含的搜索参数上下文和搜索内容
-		for(PT param : originalParamContext.allParams) {
-			// 强制重置关联搜索内容(包括重置搜索内容)
-			if(param.usingJoinWorker != null) {
-				param.usingJoinWorker.cancelJoinWork(true, false); /* 被动态关联的搜索参数不会再动态关联 */
-			}
-			// 重置使用的搜索参数上下文
-			param.paramContext = originalParamContext;
-		}
-		// 恢复最短关联路径的关联关系
-		originalParamContext.reverseParametersJoinDirection(originalParamContext.rootParam,
-				originalParamContext.realDynamicJoinParam, null);
-		originalParamContext.realDynamicJoinParam = null;
+		this.unJoin(true);
 	}
 	
 	/**
@@ -569,6 +555,19 @@ implements Cloneable {
 			}
 			this.usingJoinWorker.mappedRelationType = relationType;
 		}
+	}
+	
+	/**
+	 * 获取当前搜索参数在搜索参数树中的路径
+	 * 
+	 * @return 当前搜索参数在搜索参数树中的路径, 如果是根则为空字符串.
+	 * 
+	 * @author linjie
+	 * @since 1.0.2
+	 */
+	@Override
+	public final String getPath() {
+		return this.path;
 	}
 	
 	/**
@@ -676,6 +675,34 @@ implements Cloneable {
 	}
 	
 	/**
+	 * 启用搜索内容间的自动关系连接
+	 * 
+	 * @param isAnd 是否是使用AND连接类型, 为<code>true</code>则时AND, 否则为OR
+	 * 
+	 * @author linjie
+	 * @since 1.0.2
+	 */
+	public final void enableAutoRelation(boolean isAnd) {
+		this.assertHasInit();
+		// 设置自动关系追加
+		this.paramContext.isAutoAddRelation = true;
+		this.paramContext.isAutoAddAnd = isAnd;
+	}
+	
+	/**
+	 * 关闭搜索内容间的自动关系连接
+	 * 
+	 * @author linjie
+	 * @since 1.0.2
+	 */
+	public final void disableAutoRelation() {
+		this.assertHasInit();
+		// 关闭自动关系追加
+		this.paramContext.isAutoAddRelation = false;
+		this.paramContext.isAutoAddAnd = true;
+	}
+	
+	/**
 	 * 设置以当前搜索参数开始可以管理的所有搜索参数字段进行输出
 	 * 
 	 * @param isOupout 是否输出, true表示输出, false表示不输出
@@ -687,8 +714,6 @@ implements Cloneable {
 		this.assertHasInit();
 		// 设置所有字段输出
 		for(AbsSearcher<PT, SCT, RT, ?> searcher : this.paramContext.getAllSearchersWithStartParam((PT) this)) {
-			searcher.belongParameter.isAllMyFieldOutput = isOutput;
-			searcher.belongParameter.hasFieldOutput = isOutput;
 			searcher.setOutput(isOutput);
 		}
 	}
@@ -706,8 +731,6 @@ implements Cloneable {
 		this.assertHasInit();
 		// 设置当前搜索参数拥有字段(包括继承的)输出
 		for(AbsSearcher<PT, SCT, RT, ?> searcher : this.myOwnedSearchers) {
-			searcher.belongParameter.isAllMyFieldOutput = isOutput;
-			searcher.belongParameter.hasFieldOutput = isOutput;
 			searcher.setOutput(isOutput);
 		}
 	}
@@ -756,6 +779,12 @@ implements Cloneable {
 		this.onReset(args);
 		// 清空搜索内容
 		this.paramContext.getCurrentSearchContext().clear();
+		// 重置条件连接, 分隔符验证标志
+		this.paramContext.isAutoAddAnd = false;
+		this.paramContext.isAutoAddRelation = false;
+		this.paramContext.relationalCheckFlag = true;
+		this.paramContext.delimiterStartCount = 0;
+		this.paramContext.delimiterEndCount = 0;
 		// 重置搜素参数字段(重置搜索内容发现全没了就不会处理)
 		for(ParameterField<PT, SCT, RT> paramField : this.paramContext.allParamFields) {
 			paramField.reset();
@@ -763,7 +792,7 @@ implements Cloneable {
 		// 重置动态关联搜索内容
 		if(this.paramContext.dynamicJoinParamContextPool != null && ! this.paramContext.dynamicJoinParamContextPool.isEmpty()) {
 			for(PT param : this.paramContext.dynamicJoinParamContextPool.keySet()) {
-				param.unJoin();
+				param.unJoin(false);
 			}
 		}
 		// 重置关联搜索内容(关联搜索内容已经没有了)
@@ -777,8 +806,10 @@ implements Cloneable {
 	@Override
 	public String toString() {
 		if(this.usingJoinWorker != null) {
-			return StringUtils.concat(super.toString(), " WITH PATH ",
-					this.usingJoinWorker.mappedFromField.fieldPath);
+			return StringUtils.concat(super.toString(), 
+					" WITH PATH [", this.usingJoinWorker.mappedField.path, "]",
+					" MAPPED FROM [", this.usingJoinWorker.mappedFromParam.toString(), "]",
+					" PATH [", this.usingJoinWorker.mappedFromField.path, "]");
 		}
 		return super.toString();
 	}
@@ -867,7 +898,6 @@ implements Cloneable {
 				fromParamField, toParamField);
 		this.usingJoinWorker = joinWorker; /* 设置关联搜索参数的关联处理器*/
 		// 设置关联起点字段的属性
-		fromParamField.isMappedFromField = true;
 		if(toParam.isDefaultJoinParameter()) {
 			fromParamField.usingSearcher = null; /* 作为非动态关联的默认关联起点字段的搜索器总为null */
 		}
@@ -1063,65 +1093,109 @@ implements Cloneable {
 	 * 
 	 * @param searcher 设置输出的字段所属的搜索器
 	 * @param isOutput 是否输出, true表示输出, false表示不输出
+	 * @param isRaw 是否对字段直接操作, true则跳过获取最少关联的逻辑, false则不跳过
 	 * 
 	 * @author linjie
 	 * @since 1.0.2
 	 */
-	final void setMyFiledOutPut(AbsSearcher<PT, SCT, RT, ?> searcher, boolean isOutput) throws Exception {
+	final void setMyFiledOutPut(ParameterField<PT, SCT, RT> targetParamField, 
+			boolean isOutput, boolean isRaw) throws Exception {
 		this.assertHasInit();
-		if(! this.myOwnedSearchers.contains(searcher)) {
-			throw new IllegalArgumentException("指定的搜索器必须属于当前搜索参数");
+		if(! this.myOwnedParameterFields.contains(targetParamField)) {
+			throw new IllegalArgumentException("指定的搜索参数字段必须属于当前搜索参数");
 		}
-		ParameterField<PT, SCT, RT> searchParamField = searcher.getSearchParameterField();
+		ParameterField<PT, SCT, RT> searchParamField = targetParamField;
+		if(! isRaw) {
+			// 如果是被继承搜索参数的字段的则被关联字段要先设置输出
+			if(targetParamField.belongParameter.isInheritJoinParameter()) {
+				this.setMyFiledOutPut(targetParamField, isOutput, true);
+			}
+			// 获取符合最少关联的字段来设置输出, 
+			searchParamField = this.paramContext.getIndeedSearchParameterField(targetParamField, null);
+		}
+		// 如果是继承搜索参数, 需要使用继承终点搜索参数来判断字段
 		PT searchParam = searchParamField.belongParameter;
+		// 第一次设置输出, 设置代表操作的字段
+		if(! searchParamField.equals(targetParamField) && isOutput) {
+			if(searchParamField.representOptFields == null) {
+				searchParamField.representOptFields = new LinkedList<ParameterField<PT, SCT, RT>>();
+			}
+			if(! searchParamField.representOptFields.contains(targetParamField)) {
+				searchParamField.representOptFields.add(targetParamField);
+			}
+		}
 		// 搜索字段设置为指定的输出类型
 		searchParamField.isOutput = isOutput;
-		if(isOutput) {
-			// 触发关联处理, 添加关联的搜索内容(如果需要的话)
-			if(searchParam.usingJoinWorker != null) {
-				searchParam.usingJoinWorker.doJoinWork();
-			}
-			searchParam.hasFieldOutput = true;
-			// 继承类型父类字段设置输出等于子类字段设置输出
-			PT currentParam = searchParam;
-			while(currentParam.isInheritJoinParameter()) {
-				currentParam.hasFieldOutput = true;
-				if(currentParam.usingJoinWorker == null) {
-					break;
+		// 添加关联或回滚关联
+		for(;;) {
+			boolean isAllFieldOutput = true; // 全部字段都输出
+			boolean isAllFieldNotOutput = true; // 全部字段都不输出
+			PT checkParam = this.paramContext.getInheritEndParameter(searchParam);
+			for(ParameterField<PT, SCT, RT> paramField : checkParam.myOwnedParameterFields) {
+				if(! paramField.isOutput) {
+					isAllFieldOutput = false;
 				}
-				currentParam = currentParam.usingJoinWorker.mappedFromParam;
+				isAllFieldOutput &= paramField.isOutput;
+				isAllFieldNotOutput &= ! paramField.isOutput;
 			}
-		} else {
-			// 回滚关联的搜索内容(如果需要的话)
-			if(searchParam.usingJoinWorker != null) {
-				searchParam.usingJoinWorker.cancelJoinWork(false, true);
+			// 所有字段输出或所有字段不输出作处理, 两者互斥
+			if(isAllFieldOutput) {
+				checkParam.isAllMyFieldOutput = true;
+			} else if(isAllFieldNotOutput) {
+				checkParam.hasFieldOutput = false;
+				checkParam.isAllMyFieldOutput = false;
+				// 如果是关联搜索参数, 回滚关联信息
+				if(searchParam.usingJoinWorker != null) {
+					searchParam.usingJoinWorker.cancelJoinWork(false, true);
+				}
 			}
+			// 如果是设置为输出, 则包括该字段的继承子类搜索参数都设置为输出
+			if(isOutput) {
+				searchParam.hasFieldOutput = true;
+				// 如果是关联搜索参数, 触发关联关系
+				if(searchParam.usingJoinWorker != null) {
+					searchParam.usingJoinWorker.doJoinWork();
+				}
+			}
+			if(! searchParam.isInheritJoinParameter()) {
+				break;
+			}
+			searchParam = searchParam.usingJoinWorker.mappedFromParam;
 		}
-		// 与全局设置设置输出不符合的, 检查是否所有已拥有字段都已经与传入一致了, 否则重置搜索参数的全局输出标志与传入一致
-		if(searchParam.isAllMyFieldOutput != isOutput) {
-			boolean isAllSetAsInput = true;
-			for(ParameterField<PT, SCT, RT> ownedParamField : searchParam.myOwnedParameterFields) {
-				if(ownedParamField.isOutput != isOutput) {
-					isAllSetAsInput = false;
-					break;
-				}
-			}
-			if(isAllSetAsInput) {
-				this.isAllMyFieldOutput = isOutput;
-				if(isOutput == false) {
-					searchParam.hasFieldOutput = false;
-					// 继承类型父类字段设置不输出等于子类字段设置不输出
-					PT currentParam = searchParam;
-					while(currentParam.isInheritJoinParameter()) {
-						currentParam.hasFieldOutput = false;
-						if(currentParam.usingJoinWorker == null) {
-							break;
-						}
-						currentParam = currentParam.usingJoinWorker.mappedFromParam;
-					}
-				}
-			}
+	}
+	
+	/**
+	 * 被动态关联的搜索参数解绑动态关联, 通过isSingle决定是否从动态关联缓存池中删除对应的键值对.
+	 * <br/> 会重置被动态关联的搜索参数在关联期间进行添加的搜索内容
+	 * 
+	 * @param isSingle 是否是进行单个搜索参数来解绑, 一般在循环中解绑传入<code>false</code>, 否则传入<code>true</code>. 
+	 * 
+	 * 
+	 * @author linjie
+	 * @since 1.0.2
+	 */
+	final void unJoin(boolean isSingle) throws Exception {
+		// 未解绑前当前搜索参数使用的搜索参数上下文是包含动态关联搜索参数信息的(是关联起点搜索参数使用的上下文)
+		if(! this.paramContext.dynamicJoinParamContextPool.containsKey(this)) {
+			throw new IllegalArgumentException("当前搜索参数不是动态关联搜索参数");
 		}
+		ParameterContext<PT, SCT, RT> originalParamContext = this.paramContext.dynamicJoinParamContextPool.get(this);
+		if(isSingle) {
+			this.paramContext.dynamicJoinParamContextPool.remove(this);
+		}
+		// 重置动态关联搜索参数树包含的搜索参数上下文和搜索内容
+		for(PT param : originalParamContext.allParams) {
+			// 强制重置关联搜索内容(包括重置搜索内容)
+			if(param.usingJoinWorker != null) {
+				param.usingJoinWorker.cancelJoinWork(true, false); /* 被动态关联的搜索参数不会再动态关联 */
+			}
+			// 重置使用的搜索参数上下文
+			param.paramContext = originalParamContext;
+		}
+		// 恢复最短关联路径的关联关系
+		originalParamContext.reverseParametersJoinDirection(originalParamContext.rootParam,
+				originalParamContext.realDynamicJoinParam, null);
+		originalParamContext.realDynamicJoinParam = null;
 	}
 	
 	/**
@@ -1233,9 +1307,11 @@ implements Cloneable {
 	 */
 	final void callCloneDoneCallBack(PT clonedParam) throws Exception {
 		// 分别对拥有的搜索器和搜索参数调用初始化器的克隆回调
-		for(AbsSearcher<PT, SCT, RT, ?> searcher : clonedParam.myOwnedSearchers) {
-			clonedParam.paramContext.intializor.onDoneCloneSearcher(clonedParam,
-					searcher.getBelongParameterField(), searcher);
+		if(clonedParam.myOwnedSearchers != null) {
+			for(AbsSearcher<PT, SCT, RT, ?> searcher : clonedParam.myOwnedSearchers) {
+				clonedParam.paramContext.intializor.onDoneCloneSearcher(clonedParam,
+						searcher.getBelongParameterField(), searcher);
+			}
 		}
 		if(clonedParam.myOwnedDefaultJoinedParameters != null) {
 			for(PT defaultJoinedParam : clonedParam.myOwnedDefaultJoinedParameters) {

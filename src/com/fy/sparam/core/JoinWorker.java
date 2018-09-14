@@ -118,7 +118,8 @@ public final class JoinWorker<PT extends AbsParameter<PT, SCT, RT>, SCT, RT> {
 	 * @author linjie
 	 * @since 1.0.2
 	 */
-	final static <PT extends AbsParameter<PT, SCT, RT>, SCT, RT> JoinWorker<PT, SCT, RT> build(PT fromParam, PT toParam,
+	final static <PT extends AbsParameter<PT, SCT, RT>, SCT, RT> JoinWorker<PT, SCT, RT> build(
+			PT fromParam, PT toParam,
 			JoinType joinType, RelationType relationType,
 			ParameterField<PT, SCT, RT> fromField, ParameterField<PT, SCT, RT> toField) {
 		JoinWorker<PT, SCT, RT> joinWorker = new JoinWorker<PT, SCT, RT>();
@@ -128,6 +129,8 @@ public final class JoinWorker<PT extends AbsParameter<PT, SCT, RT>, SCT, RT> {
 		joinWorker.mappedRelationType = relationType;
 		joinWorker.mappedFromField = fromField;
 		joinWorker.mappedField = toField;
+		
+		joinWorker.mappedFromField.isMappedFromField = true;
 		return joinWorker;
 	}
 	
@@ -158,14 +161,14 @@ public final class JoinWorker<PT extends AbsParameter<PT, SCT, RT>, SCT, RT> {
 	/**
 	 * 进行回滚关联处理操作
 	 * 
-	 * @param isForce 是否强制清除掉搜索参数字段使用的搜索器产生的搜索内容, 这样不会因为字段被搜索或输出而退出
+	 * @param isReset 是否强制清除掉搜索参数字段使用的搜索器产生的搜索内容, 这样不会因为字段被搜索或输出而退出
 	 * @param isNeedjudgeReachable 是否需要判断所有可达的搜索参数字段, 主要为内部调用不用重复判断
 	 * @throws Exception 回滚失败则抛出异常
 	 * 
 	 * @author linjie
 	 * @since 1.0.2
 	 */
-	final void cancelJoinWork(boolean isForce, boolean isNeedjudgeReachable) throws Exception {
+	final void cancelJoinWork(boolean isReset, boolean isNeedjudgeReachable) throws Exception {
 		if(this.hasJoin) {
 			// 遍历一遍搜索参数字段没有输出且没有被搜索, 则需要重置关联信息
 			Collection<ParameterField<PT, SCT, RT>> judgeParamFields = null;
@@ -177,7 +180,7 @@ public final class JoinWorker<PT extends AbsParameter<PT, SCT, RT>, SCT, RT> {
 				judgeParamFields = this.mappedParam.myParameterFields.values();
 			}
 			for(ParameterField<PT, SCT, RT> paramField : judgeParamFields) {
-				if(! isForce) {
+				if(! isReset) {
 					if(paramField.isOutput || paramField.isSearched) {
 						// 如果有非搜索参数类型字段输出或者被搜索了, 直接退出
 						return;

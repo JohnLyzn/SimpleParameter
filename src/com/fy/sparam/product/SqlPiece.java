@@ -1,8 +1,8 @@
 package com.fy.sparam.product;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.LinkedList;
 import java.util.List;
 
 /**
@@ -42,8 +42,7 @@ public final class SqlPiece {
 		}
 		this.sqlPart = sqlPart;
 		if(vals != null && vals.length != 0) {
-			this.vals = new LinkedList<Object>();
-			this.vals.addAll(Arrays.asList(vals));
+			this.vals = new ArrayList<Object>(Arrays.asList(vals));
 		}
 	}
 	
@@ -58,10 +57,9 @@ public final class SqlPiece {
 			throw new IllegalArgumentException("sql语句不能为null");
 		}
 		this.sqlPart = sqlPart;
-		if(this.vals == null) {
-			this.vals = new LinkedList<Object>();
+		if(vals != null && ! vals.isEmpty()) {
+			this.vals = new ArrayList<Object>(vals);
 		}
-		this.vals.addAll(vals);
 	}
 	
 	/**

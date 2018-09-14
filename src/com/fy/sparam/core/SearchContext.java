@@ -373,23 +373,21 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		String getFieldName() throws Exception;
 		
 		/**
-		 * 获取对应的搜索参数字段在入口搜索参数中的属性路径
+		 * 获取搜索器在搜索参数树中的属性路径
 		 * 
-		 * @return 对应的搜索参数字段在入口搜索参数中的属性路径
+		 * @return 搜索器在搜索参数树中的属性路径
 		 *
 		 * @author linjie
 		 * @since 1.0.2
 		 */
-		String getFieldPath() throws Exception;
+		String getPath() throws Exception;
 		
 		/**
-		 * 获取对应的搜索参数字段经过表别名前缀处理的当前搜索范围中唯一属性名
-		 * <br/> 格式为表别名前缀.当前搜索器所在搜索参数中的属性名称
-		 * <br/> 被关联的搜索参数字段使用实际代表操作的字段的唯一属性名.
-		 * <br/> 继承关联搜索参数的关联搜索参数字段只会使用最终子类搜索参数的表别名作为前缀.
+		 * 获取经过表别名前缀处理的定位属性名(唯一的范围为当前搜索参数树, 包括动态关联的部分)
+		 * <br/> 格式为表别名前缀.当前搜索参数字段所在搜索参数中的属性名称
 		 * 
 		 * @return 经过表别名前缀处理的唯一属性名
-		 * 
+		 *
 		 * @author linjie
 		 * @since 1.0.2
 		 */
@@ -467,7 +465,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * <br/>传入的搜索参数限定了指定哪个搜索参数进行接下来的操作, 请保持使用同一范围(一个入口, 可能多个关联)的搜索参数, 
 		 * 跨入口搜索参数使用可能会导致错误的结果.
 		 * 
-		 * @param param 要求进行连接的搜索参数实例
+		 * @param param 要求进行连接的搜索参数实例, 可以为null, 为null返回的结果也是null
 		 * @return 传入的搜索参数的实例, 形成链型调用
 		 *
 		 * @author linjie
@@ -480,7 +478,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * <br/>传入的搜索参数限定了指定哪个搜索参数进行接下来的操作, 请保持使用同一范围(一个入口, 可能多个关联)的搜索参数, 
 		 * 跨入口搜索参数使用可能会导致错误的结果.
 		 * 
-		 * @param param 要求进行连接的搜索参数实例
+		 * @param param 要求进行连接的搜索参数实例, 可以为null, 为null返回的结果也是null
 		 * @return 传入的搜索参数的实例, 形成链型调用
 		 *
 		 * @author linjie

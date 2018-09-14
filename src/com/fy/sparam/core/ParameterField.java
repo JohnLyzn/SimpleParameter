@@ -1,8 +1,13 @@
 package com.fy.sparam.core;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 
+import com.fy.sparam.core.ParameterContext.IParameterObj;
 import com.fy.sparam.util.StringUtils;
 
 /**
@@ -16,7 +21,7 @@ import com.fy.sparam.util.StringUtils;
  * @since 1.0.2
  */
 public final class ParameterField<PT extends AbsParameter<PT, SCT, RT>, SCT, RT>
-implements Cloneable {
+implements IParameterObj, Cloneable {
 
 	/**
 	 * 字段名称
@@ -25,14 +30,6 @@ implements Cloneable {
 	 * @since 1.0.2
 	 */
 	String fieldName;
-	
-	/**
-	 * 字段相对于根搜索参数的字段路径
-	 * 
-	 * @author linjie
-	 * @since 1.0.2
-	 */
-	String fieldPath;
 	
 	/**
 	 * 数据库属性名称
@@ -124,6 +121,14 @@ implements Cloneable {
 	Map<String, Object> extraInfo;
 
 	/**
+	 * 字段相对于根搜索参数的字段路径
+	 * 
+	 * @author linjie
+	 * @since 1.0.2
+	 */
+	String path;
+	
+	/**
 	 * 使用的搜索器
 	 * <br/> 如果是被关联字段, 则使用的搜索器必为null
 	 * 
@@ -131,7 +136,7 @@ implements Cloneable {
 	 * @since 1.0.2
 	 */
 	AbsSearcher<PT, SCT, RT, ?> usingSearcher;
-
+	
 	/**
 	 * 是否是被关联字段
 	 * 
@@ -139,6 +144,14 @@ implements Cloneable {
 	 * @since 1.0.2
 	 */
 	boolean isMappedFromField;
+	
+	/**
+	 * 代表操作字段列表
+	 * 
+	 * @author linjie
+	 * @since 1.0.2
+	 */
+	List<ParameterField<PT, SCT, RT>> representOptFields;
 	
 	public String getFieldName() {
 		return fieldName;
@@ -204,6 +217,7 @@ implements Cloneable {
 		this.groupByPriority = groupByPriority;
 	}
 
+	
 	/**
 	 * 获取当前搜索参数字段在搜索参数树中的路径
 	 * 
@@ -212,8 +226,9 @@ implements Cloneable {
 	 * @author linjie
 	 * @since 1.0.2
 	 */
-	public final String getFieldPath() {
-		return fieldPath;
+	@Override
+	public String getPath() {
+		return this.path;
 	}
 	
 	/**
@@ -243,40 +258,56 @@ implements Cloneable {
 	/**
 	 * 获取经过表别名前缀处理的完全数据库列名
 	 * <br/> 格式为表别名前缀.数据库列名称
+	 * <br/> 不会因为关联链导致可能有多个, 因为(设置输出, 触发关联)总是选择最短关联路径, 输出是绝对的.
+	 * <br/> 可能一个对应多个经过表别名前缀处理的当前搜索范围中唯一属性名
 	 * 
-	 * @return 经过表别名前缀处理的完全数据库列名
+	 * @return 经过表别名前缀处理的完全数据库列名. 
 	 *
 	 * @author linjie
 	 * @since 1.0.2
 	 */
 	public final String getWholeDbFieldName() {
-		return StringUtils.concat(this.belongParameter.tableAlias, ParameterContext.PATH_SPERATOR, this.dbFieldName);
+		ParameterField<PT, SCT, RT> searchParamField = this.belongParameter.paramContext.getIndeedSearchParameterField(this, null);
+		// 拼接经过的搜索参数的表别名定位字段名称
+		return StringUtils.concat(
+				searchParamField.belongParameter.tableAlias,
+				ParameterContext.PATH_SPERATOR,
+				searchParamField.dbFieldName);
 	}
 	
 	/**
-	 * 获取经过表别名前缀处理的定位属性名(唯一的范围为当前搜索参数树, 包括动态关联的部分)
-	 * <br/> 格式为表别名前缀.当前搜索参数字段所在搜索参数中的属性名称
-	 * <br/> 被关联的搜索参数字段使用实际代表操作的字段的唯一属性名.
+	 * 获取对应的搜索参数字段经过表别名前缀处理的当前搜索范围中唯一属性名
+	 * <br/> 格式为表别名前缀(如果经过多个字段).当前搜索器所在搜索参数中的属性名称
+	 * <br/> 被关联的搜索参数字段使用实际代表操作的字段的唯一属性名, 且把途径的所有搜索参数的表别名列出.
 	 * <br/> 继承关联搜索参数的关联搜索参数字段只会使用最终子类搜索参数的表别名作为前缀.
+	 * <br/> 原则上即: 该字段属于哪个搜索参数就是对应的表别名.
+	 * <br/> 由于关联链导致可能有多个.
+	 * <br/> 从关联链的头到尾的顺序返回结果.
 	 * 
-	 * @return 经过表别名前缀处理的唯一属性名
-	 *
+	 * @return 经过表别名前缀处理的唯一属性名集合, 至少包含一个值.
+	 * 
 	 * @author linjie
 	 * @since 1.0.2
 	 */
-	public final String getDbTableAliasLocateFieldName() {
-		AbsParameter<PT, SCT, RT> targetParam = this.belongParameter;
-		ParameterField<PT, SCT, RT> targetParamField = this;
-		// 如果是被关联字段, 则找到实际代表操作的字段, 使用其所属搜索参数的表别名
+	public final List<String> getDbTableAliasLocateFieldNames() {
+		// 如果是关联头端字段, 则找到实际代表操作的字段, 使用其所属搜索参数的表别名
+		List<ParameterField<PT, SCT, RT>> passParamFields = new LinkedList<ParameterField<PT, SCT, RT>>();
 		if(this.isMappedFromField) {
-			targetParamField = this.belongParameter.paramContext.getIndeedRepresentParamField(this);
-			targetParam = targetParamField.belongParameter;
+			this.belongParameter.paramContext.getIndeedRepresentParamFields(this, passParamFields);
+		} else {
+			this.belongParameter.paramContext.getIndeedSearchParameterField(this, passParamFields);
+			// 重被关联到关联起点, 为了和getIndeedRepresentParamField的顺序对应起来, 故进行反转
+			Collections.reverse(passParamFields);
 		}
-		// 如果是继承搜索参数, 需要使用最终子类搜索参数的表别名
-		while(targetParam.isInheritJoinParameter()) {
-			targetParam = targetParam.usingJoinWorker.mappedFromParam;
+		// 加入经过的搜索参数的表别名定位字段名称
+		List<String> results = new ArrayList<String>(passParamFields.size());
+		for(ParameterField<PT, SCT, RT> passParamField : passParamFields) {
+			AbsParameter<PT, SCT, RT> aliasParam = this.belongParameter.paramContext
+					.getInheritEndParameter(passParamField.belongParameter);
+			results.add(StringUtils.concat(aliasParam.tableAlias,
+					ParameterContext.PATH_SPERATOR, passParamField.fieldName));
 		}
-		return StringUtils.concat(targetParam.tableAlias, ParameterContext.PATH_SPERATOR, targetParamField.fieldName);
+		return results;
 	}
 	
 	/**
@@ -312,8 +343,8 @@ implements Cloneable {
 	}
 	
 	@Override
-	public final String toString() {
-		return StringUtils.concat(super.toString(), " WITH PATH ", this.fieldPath);
+	public String toString() {
+		return StringUtils.concat(super.toString(), " WITH PATH ", this.path);
 	}
 	
 	/**
@@ -338,6 +369,11 @@ implements Cloneable {
 			this.belongParameter.paramContext.getCurrentSearchContext()
 				.removeSearchEntryBySource(this.usingSearcher);
 		}
+		// 清空被代表字段, 如果有
+		if(this.representOptFields != null) {
+			this.representOptFields.clear();
+			this.representOptFields = null;
+		}
 	}
 	
 	/**
@@ -361,6 +397,7 @@ implements Cloneable {
 		cloneParamField.usingSearcher = null;
 		cloneParamField.belongParameter = null;
 		cloneParamField.isMappedFromField = false;
+		cloneParamField.representOptFields = null;
 		if(this.extraInfo != null && ! this.extraInfo.isEmpty()) {
 			cloneParamField.extraInfo = new HashMap<String, Object>();
 			cloneParamField.extraInfo.putAll(this.extraInfo);

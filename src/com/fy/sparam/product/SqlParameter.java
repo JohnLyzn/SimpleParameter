@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -13,6 +12,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import com.fy.sparam.core.AbsParameter;
 import com.fy.sparam.core.JoinWorker.JoinType;
 import com.fy.sparam.core.JoinWorker.RelationType;
+import com.fy.sparam.core.ParameterContext;
 import com.fy.sparam.core.ParameterField;
 import com.fy.sparam.core.SearchContext.ISearchable;
 import com.fy.sparam.init.anno.AnnotationInitializor;
@@ -21,6 +21,7 @@ import com.fy.sparam.test.StringUtils;
 
 /**
  * 构建Sql语句的搜索参数
+ * <br> <strong>非线程安全!!!</strong>
  * 
  * @author linjie
  * @since 1.0.2
@@ -44,13 +45,6 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 	public static final int MAX_COUNT = 500;
 	
 	/**
-	 * 
-	 * @author linjie
-	 * @since 1.0.2
-	 */
-	public static final String WHERE = SqlMember.WHERE.name();
-	
-	/**
 	 * 构建类型, 即构建方式
 	 *
 	 * @author linjie
@@ -66,7 +60,7 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 		 */
 		SELECT_ENTITIES(SqlMember.SELECT_ENTITIES_HEAD,
 				SqlMember.FROM, SqlMember.JOIN, SqlMember.WHERE,
-				SqlMember.ORDER_BY, SqlMember.GROUP_BY,
+				SqlMember.GROUP_BY, SqlMember.ORDER_BY,
 				SqlMember.LIMIT),
 		/**
 		 * 构建获取实体指定字段SQL
@@ -76,7 +70,7 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 		 */
 		SELECT_FIELDS(SqlMember.SELECT_FIELDS_HEAD,
 				SqlMember.FROM, SqlMember.JOIN, SqlMember.WHERE,
-				SqlMember.ORDER_BY, SqlMember.GROUP_BY,
+				SqlMember.GROUP_BY, SqlMember.ORDER_BY,
 				SqlMember.LIMIT),
 		/**
 		 * 构建获取数量SQL
@@ -161,13 +155,21 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 			@Override
 			public void build(SqlParameter param, SqlResult result, Object... args) throws Exception {
 				param.setAllMyFieldOutput(true);
-				String tableAlias = param.getTableAlias();
-				StringBuilder tableAliasesBuilder = new StringBuilder(tableAlias).append(".*");
-				for(SqlParameter inheritedFromParam : param.getInheritedFromParameters()) {
-					tableAliasesBuilder.append(",").append(inheritedFromParam.getTableAlias()).append(".*");
+				// 获取所有输出的实体对应的搜索参数
+				ParameterContext<SqlParameter, SqlPiece, SqlResult> paramContext = param.getParameterContext();
+				Collection<SqlParameter> outputParams = paramContext.getAllOutputParameters();
+				if(outputParams.isEmpty()) {
+					throw new IllegalArgumentException("获取实体的sql构建需要指定输出的实体");
 				}
-				result.addSqlPiece(new SqlPiece(StringUtils.concatAsStr(
-						"SELECT ", tableAliasesBuilder.toString())));
+				// 拼接select内容
+				StringBuilder selectEntitiesSqlBuilder = new StringBuilder();
+				for(SqlParameter outputParam : outputParams) {
+					selectEntitiesSqlBuilder.append(outputParam.getTableAlias()).append(".*,");
+				}
+				selectEntitiesSqlBuilder.deleteCharAt(selectEntitiesSqlBuilder.length() - 1); /* 删除最后的',' */
+				// 添加到搜索内容中
+				result.addSqlPiece(new SqlPiece(StringUtils.concatAsStr("SELECT ",
+						selectEntitiesSqlBuilder.toString())));
 			}
 		}),
 		
@@ -181,49 +183,47 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 	
 			@Override
 			public void build(SqlParameter param, SqlResult result, Object... args) throws Exception {
-				StringBuilder dbFieldNamesBuilder = new StringBuilder();
-				
-				Collection<ParameterField<SqlParameter, SqlPiece, SqlResult>> allParamFields = 
-						param.getParameterContext().getAllParameterFields();
-				
-				List<String> selectedDbFieldNames = new LinkedList<String>();
-				List<String> selectedDbTableAliasLocateFieldNames = new LinkedList<String>();
-				
-				int count = 0;
-				for(ParameterField<SqlParameter, SqlPiece, SqlResult> paramField : allParamFields) {
-					if(paramField.isOutput()) {
-						// 把需要输出的缓存待用
-						String dbTableAliasLocatFieldName = paramField.getDbTableAliasLocateFieldName();
-						selectedDbTableAliasLocateFieldNames.add(dbTableAliasLocatFieldName);
-						// 拼接select语句中输出的内容
-						dbFieldNamesBuilder.append(paramField.getWholeDbFieldName());
-						// 如果该字段之前已经出现过了, 那么加上别名
-						String dbFieldName = paramField.getDbFieldName();
-						if(selectedDbFieldNames.contains(dbFieldName)) {
-							dbFieldNamesBuilder.append(" AS ");
-							// 如果自己配置了列别名, 那么使用配置的列, 错误不管
-							String alias = paramField.getDbFieldAlias();
-							if(alias != null && !alias.isEmpty()) {
-								dbFieldNamesBuilder.append(alias);
-							} else {
-								dbFieldNamesBuilder.append(paramField.getFieldName());
-								dbFieldNamesBuilder.append("_");
-								dbFieldNamesBuilder.append(count);
-								count ++;
-							}
-						} else {
-							// 如果之前没出现过, 加上已选择字段中
-							selectedDbFieldNames.add(dbFieldName);
-						}
-						dbFieldNamesBuilder.append(",");
-					}
-				}
-				if(dbFieldNamesBuilder.length() == 0) {
+				// 获取所有输出的字段
+				ParameterContext<SqlParameter, SqlPiece, SqlResult> paramContext = param.getParameterContext();
+				Collection<ParameterField<SqlParameter, SqlPiece, SqlResult>> outputParamFields = 
+						paramContext.getAllOutputParameterFields();
+				if(outputParamFields.isEmpty()) {
 					throw new IllegalArgumentException("获取字段的sql构建需要指定输出的字段");
 				}
-				String selectedDbFieldNamesStr = dbFieldNamesBuilder.substring(0, dbFieldNamesBuilder.length() - 1);
-				result.setSelectedDbTableAliasLocateFieldNames(selectedDbTableAliasLocateFieldNames);
-				result.addSqlPiece(new SqlPiece(StringUtils.concatAsStr("SELECT ", selectedDbFieldNamesStr)));
+				// 拼接select的字段内容
+				int suffixNumber = 0; /* 字段别名的后缀数字, 这样能保证一定不会重复 */
+				StringBuilder selectSqlBuilder = new StringBuilder();
+				List<String> appearDbFieldNames = new ArrayList<String>(outputParamFields.size());
+				List<String[]> outputFieldNames = new ArrayList<String[]>(outputParamFields.size());
+				for(ParameterField<SqlParameter, SqlPiece, SqlResult> paramField : outputParamFields) {
+					// 拼接select语句中输出的内容
+					selectSqlBuilder.append(paramField.getWholeDbFieldName());
+					// 把输出的列对应的属性名称按顺序记录下来
+					List<String> dbTableAliasLocatFieldNames = paramField.getDbTableAliasLocateFieldNames();
+					outputFieldNames.add(dbTableAliasLocatFieldNames.toArray(new String[dbTableAliasLocatFieldNames.size()]));
+					// 如果该字段之前已经出现过了, 那么加上别名
+					String dbFieldName = paramField.getDbFieldName();
+					if(appearDbFieldNames.contains(dbFieldName)) {
+						selectSqlBuilder.append(" AS ");
+						// 如果自己配置了列别名, 那么使用配置的列, 错误不管
+						String alias = paramField.getDbFieldAlias();
+						if(alias != null && ! alias.isEmpty()) {
+							selectSqlBuilder.append(alias);
+						} else {
+							selectSqlBuilder.append(paramField.getFieldName());
+							selectSqlBuilder.append("_");
+							selectSqlBuilder.append(suffixNumber);
+							suffixNumber ++;
+						}
+					} else {
+						// 如果之前没出现过, 加上已出现的集合中
+						appearDbFieldNames.add(dbFieldName);
+					}
+					selectSqlBuilder.append(",");
+				}
+				selectSqlBuilder.deleteCharAt(selectSqlBuilder.length() - 1); /* 删除最后的',' */
+				result.setOutputValCorrespondFieldNames(outputFieldNames);
+				result.addSqlPiece(new SqlPiece(StringUtils.concatAsStr("SELECT ", selectSqlBuilder.toString())));
 			}
 		}),
 		
@@ -239,9 +239,11 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 			public void build(SqlParameter param, SqlResult result, Object... args) throws Exception {
 				param.setAllMyFieldOutput(true);
 				String countSql = "COUNT(1)";
-				String groupByFieldSql = param.getGroupBySqlStr();
-				if(! groupByFieldSql.isEmpty()) {
-					countSql = StringUtils.concatAsStr("COUNT(DISTINCT ", groupByFieldSql, ")");
+				if(! param.isIgnoreGroupBy) {
+					String groupByFieldSql = SqlParameter.generateGroupBySqlStr(param);
+					if(! groupByFieldSql.isEmpty()) {
+						countSql = StringUtils.concatAsStr("COUNT(DISTINCT ", groupByFieldSql, ")");
+					}
 				}
 				result.addSqlPiece(new SqlPiece(StringUtils.concatAsStr("SELECT ", countSql)));
 			}
@@ -322,7 +324,7 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 						}
 						marker = (SqlMarker) args[1];
 						Map<ISearchable<?>, Object> udpateContents = marker.getUpdateContents();
-						if(udpateContents.isEmpty()) {
+						if(udpateContents == null || udpateContents.isEmpty()) {
 							throw new IllegalArgumentException("构建update语句没有需要更新的内容!");
 						}
 						// 构建set子句的sql语句
@@ -332,13 +334,10 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 							ParameterField<SqlParameter, SqlPiece, SqlResult> paramField =
 									fieldSearcher.getBelongParameterField();
 							String fieldName = paramField.getWholeDbFieldName();
-							setSqlBuilder.append(", ");
-							setSqlBuilder.append(fieldName);
-							setSqlBuilder.append(" = ?");
+							setSqlBuilder.append(" ").append(fieldName).append(" = ?").append(",");
 						}
-						// "SET "
-						String setSql = setSqlBuilder.toString().replaceFirst(",", "");
-						result.addSqlPiece(new SqlPiece(setSql, udpateContents.values()));
+						setSqlBuilder.deleteCharAt(setSqlBuilder.length() - 1);
+						result.addSqlPiece(new SqlPiece(setSqlBuilder.toString(), udpateContents.values()));
 					}
 				} else {
 					throw new IllegalAccessException("构建update语句缺失了set字句的额外参数, 无法构建!");
@@ -390,10 +389,36 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 	
 			@Override
 			public void build(SqlParameter param, SqlResult result, Object... args) throws Exception {
-				List<SqlPiece> whereSqlPiece = param.getSearchEntry(SqlMember.WHERE.name());
-				if(! whereSqlPiece.isEmpty()) {
+				List<SqlPiece> whereSqlPieces = param.getSearchEntry(SqlMember.WHERE.name());
+				if(! whereSqlPieces.isEmpty()) {
 					result.addSqlPiece(new SqlPiece(" WHERE "));
-					result.addSqlPieces(whereSqlPiece);
+					result.addSqlPieces(whereSqlPieces);
+				}
+			}
+		}),
+		
+		/**
+		 * 表示分组的sql语句
+		 * 
+		 * @author linjie
+		 * @since 1.0.2
+		 */
+		GROUP_BY(new ISqlBuilder() {
+	
+			@Override
+			public void build(SqlParameter param, SqlResult result, Object... args) throws Exception {
+				if(param.isIgnoreGroupBy) {
+					// 如果有额外添加的GROUP BY语句则拼接上去
+					List<SqlPiece> extraGroupBySqlPieces = param.getSearchEntry(SqlMember.GROUP_BY.name());
+					if(! extraGroupBySqlPieces.isEmpty()) {
+						result.addSqlPieces(extraGroupBySqlPieces);
+					}
+					return;
+				}
+				String groupByFieldStr = SqlParameter.generateGroupBySqlStr(param);
+				if(! groupByFieldStr.isEmpty()) {
+					result.addSqlPiece(new SqlPiece(StringUtils.concatAsStr(
+							"GROUP BY ", groupByFieldStr, " ")));
 				}
 			}
 		}),
@@ -408,6 +433,14 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 	
 			@Override
 			public void build(SqlParameter param, SqlResult result, Object... args) throws Exception {
+				if(param.isIgnoreOrderBy) {
+					// 如果有额外添加的ORDER BY语句则拼接上去
+					List<SqlPiece> extraOrderBySqlPieces = param.getSearchEntry(SqlMember.ORDER_BY.name());
+					if(! extraOrderBySqlPieces.isEmpty()) {
+						result.addSqlPieces(extraOrderBySqlPieces);
+					}
+					return;
+				}
 				Map<Integer, String> orderBys = new TreeMap<Integer, String>(INT_COMPARATOR);
 				
 				Collection<ParameterField<SqlParameter, SqlPiece, SqlResult>> allParamFields = 
@@ -426,9 +459,9 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 								fieldName = StringUtils.concatAsStr("CONCAT(", orderByFieldStr,", ", fieldName,")");
 							} else {
 								// 去掉CONCAT(...)最右边的括号
-								String ableToAddStr = orderByFieldStr.substring(0, orderByFieldStr.length() - 1);
+								String ableToAddConcatStr = orderByFieldStr.substring(0, orderByFieldStr.length() - 1);
 								// 拼上新的列名, 不齐右括号
-								fieldName = StringUtils.concatAsStr("", ableToAddStr,", ", fieldName,")");
+								fieldName = StringUtils.concatAsStr("", ableToAddConcatStr,", ", fieldName,")");
 							}
 						}
 						String order = paramField.isAsc() ? "ASC" : "DESC";
@@ -436,31 +469,14 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 					}
 				}
 				if(! orderBys.isEmpty()) {
-					StringBuilder sb = new StringBuilder();
+					StringBuilder orderBySqlBuilder = new StringBuilder();
 					for(Integer key : orderBys.keySet()) {
-						sb.append(orderBys.get(key));
-						sb.append(",");
+						orderBySqlBuilder.append(orderBys.get(key));
+						orderBySqlBuilder.append(",");
 					}
+					orderBySqlBuilder.deleteCharAt(orderBySqlBuilder.length() - 1);
 					result.addSqlPiece(new SqlPiece(StringUtils.concatAsStr(
-							"ORDER BY ", sb.substring(0, sb.length() - 1), " ")));
-				}
-			}
-		}),
-		
-		/**
-		 * 表示分组的sql语句
-		 * 
-		 * @author linjie
-		 * @since 1.0.2
-		 */
-		GROUP_BY(new ISqlBuilder() {
-	
-			@Override
-			public void build(SqlParameter param, SqlResult result, Object... args) throws Exception {
-				String groupByFieldStr = param.getGroupBySqlStr();
-				if(! groupByFieldStr.isEmpty()) {
-					result.addSqlPiece(new SqlPiece(StringUtils.concatAsStr(
-							"GROUP BY ", groupByFieldStr, " ")));
+							"ORDER BY ", orderBySqlBuilder.toString(), " ")));
 				}
 			}
 		}),
@@ -475,6 +491,9 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 	
 			@Override
 			public void build(SqlParameter param, SqlResult result, Object... args) throws Exception {
+				if(param.isIgnoreLimit) {
+					return;
+				}
 				int page = param.getPage();
 				int count = param.getCount();
 				int start = (page - 1) * count;
@@ -541,6 +560,30 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 	}
 	
 	/**
+	 * 是否忽略Limit语句
+	 * 
+	 * @author linjie
+	 * @since 4.5.0
+	 */
+	private boolean isIgnoreLimit;
+	
+	/**
+	 * 是否忽略GroupBy语句
+	 * 
+	 * @author linjie
+	 * @since 4.5.0
+	 */
+	private boolean isIgnoreGroupBy;
+	
+	/**
+	 * 是否忽略OrderBy语句
+	 * 
+	 * @author linjie
+	 * @since 4.5.0
+	 */
+	private boolean isIgnoreOrderBy;
+	
+	/**
 	 * 搜索参数原型缓存池
 	 * 
 	 * @author linjie
@@ -586,8 +629,8 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 		if(prototype == null) {
 			prototype = paramClazz.newInstance();
 			prototype.init(annoInitializor, SqlSearcher.class, SqlParameter.class, null, null, null);
-			prototype.setPage(1);
-			prototype.setCount(500);
+			prototype.setPage(MIN_PAGE);
+			prototype.setCount(MAX_COUNT);
 			paramPrototypePool.put(paramClazz, prototype);
 		}
 		return (SPT) prototype.clone();
@@ -607,6 +650,114 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 			page = MIN_PAGE;
 		}
 		super.setPage(page);
+	}
+	
+	/**
+	 * 加入自定义的from的sql语句(注意尾部加空格)
+	 * 
+	 * @param from 自定义的from的sql语句, 不能为null
+	 * @throws Exception from为null则抛出异常
+	 * 
+	 * @author linjie
+	 * @since 4.5.0
+	 */
+	public void addExtraFrom(String from) throws Exception {
+		if(from == null) {
+			throw new IllegalArgumentException("错误的自定义From的Sql语句"); 
+		}
+		this.addSearchEntry(SqlMember.FROM.name(), new SqlPiece(from));
+	}
+	
+	/**
+	 * 加入自定义的where的sql语句(注意尾部加空格)
+	 * <br/> 首个条件不需要添加WHERE和AND!
+	 * <br/> 与搜索参数中的条件以AND方式连接.
+	 * 
+	 * @param where 自定义的where的sql语句, 不能为null
+	 * @throws Exception where为null则抛出异常
+	 * 
+	 * @author linjie
+	 * @since 4.5.0
+	 */
+	public void addExtraWhere(String where, Object...params) throws Exception {
+		if(where == null) {
+			throw new IllegalArgumentException("错误的自定义Where的Sql语句"); 
+		}
+		this.above().and(null);
+		this.addSearchEntry(SqlMember.WHERE.name(), new SqlPiece(where, params));
+	}
+	
+	/**
+	 * 加入自定义的group by的sql语句(注意尾部加空格)
+	 * <br/> 需要以 GROUP BY 开头
+	 * <br/> 会清理搜索参数中原来设置的GroupBy
+	 * 
+	 * @param groupBy 自定义的groupBy的sql语句, 不能为null
+	 * @throws Exception groupBy为null则抛出异常
+	 * 
+	 * @author linjie
+	 * @since 4.5.0
+	 */
+	public void addExtraGroupBy(String groupBy) throws Exception {
+		if(groupBy == null) {
+			throw new IllegalArgumentException("错误的自定义GroupBy的Sql语句"); 
+		}
+		this.isIgnoreGroupBy = true;
+		this.clearSearchEntry(SqlMember.GROUP_BY.name());
+		this.addSearchEntry(SqlMember.GROUP_BY.name(), new SqlPiece(groupBy));
+	}
+	
+	/**
+	 * 加入自定义的order by的sql语句(注意尾部加空格)
+	 * <br/> 需要以 ORDER BY 开头
+	 * <br/> 会清理搜索参数中原来设置的OrderBy
+	 * 
+	 * @param orderBy 自定义的orderBy的sql语句, 不能为null
+	 * @throws Exception orderBy为null则抛出异常
+	 * 
+	 * @author linjie
+	 * @since 4.5.0
+	 */
+	public void addExtraOrderBy(String orderBy) throws Exception {
+		if(orderBy == null) {
+			throw new IllegalArgumentException("错误的自定义OrderBy的Sql语句"); 
+		}
+		this.isIgnoreOrderBy = true;
+		this.clearSearchEntry(SqlMember.ORDER_BY.name());
+		this.addSearchEntry(SqlMember.ORDER_BY.name(), new SqlPiece(orderBy));
+	}
+
+	/**
+	 * 设置是否忽略Limit语句
+	 * @param isIgnoreLimit 是否忽略Limit语句, <tt>true</tt>表示忽略, <tt>false</tt>是默认情况, 表示不忽略
+	 * 
+	 * @author linjie
+	 * @since 4.5.0
+	 */
+	public void setIgnoreLimit(boolean isIgnoreLimit) {
+		this.isIgnoreLimit = isIgnoreLimit;
+	}
+	
+	/**
+	 * 设置是否忽略GroupBy语句
+	 * @param isIgnoreGroupBy 是否忽略GroupBy语句, <tt>true</tt>表示忽略, <tt>false</tt>是默认情况, 表示不忽略
+	 * 
+	 * @author linjie
+	 * @since 4.5.0
+	 */
+	public void setIgnoreGroupBy(boolean isIgnoreGroupBy) {
+		this.isIgnoreGroupBy = isIgnoreGroupBy;
+	}
+	
+	/**
+	 * 设置是否忽略OrderBy语句
+	 * @param isIgnoreOrderBy 是否忽略OrderBy语句, <tt>true</tt>表示忽略, <tt>false</tt>是默认情况, 表示不忽略
+	 * 
+	 * @author linjie
+	 * @since 4.5.0
+	 */
+	public void setIgnoreOrderBy(boolean isIgnoreOrderBy) {
+		this.isIgnoreOrderBy = isIgnoreOrderBy;
 	}
 	
 	@Override
@@ -672,9 +823,15 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 		return result;
 	}
 	
+	@Override
+	protected void onReset(Object... args) throws Exception {
+		this.isIgnoreGroupBy = false;
+		this.isIgnoreOrderBy = false;
+		this.isIgnoreLimit = false;
+	}
 	
 	/**
-	 * 获取GroupBy字段的字符串
+	 * 解析并生成GroupBy字段的字符串
 	 * <br/> 按照优先级进行排序, 优先级越高在越前面, 多个使用CONCAT进行连接
 	 * 
 	 * @return GroupBy字段的字符串
@@ -682,10 +839,10 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 	 * @author linjie
 	 * @since 4.5.0
 	 */
-	private String getGroupBySqlStr() throws Exception {
+	private static String generateGroupBySqlStr(SqlParameter param) throws Exception {
 		Map<Integer, String> groupBys = new TreeMap<Integer, String>(INT_COMPARATOR);
 		Collection<ParameterField<SqlParameter, SqlPiece, SqlResult>> paramFields = 
-				this.getParameterContext().getAllParameterFields();
+				param.getParameterContext().getAllParameterFields();
 		for(ParameterField<SqlParameter, SqlPiece, SqlResult> paramField : paramFields) {
 			String fieldName = paramField.getWholeDbFieldName();
 			if(paramField.isGroupBy()) {
