@@ -2,6 +2,7 @@ package com.fy.sparam.core;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -10,10 +11,10 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.Stack;
 
-import com.fy.sparam.core.AbsParameter.IInitializor;
+import com.fy.sparam.core.AbsParameter.IParameterInitializor;
 import com.fy.sparam.core.AbsParameter.ParameterType;
+import com.fy.sparam.core.JoinWorker.JoinRelationType;
 import com.fy.sparam.core.JoinWorker.JoinType;
-import com.fy.sparam.core.JoinWorker.RelationType;
 import com.fy.sparam.core.SearchContext.ISearchable;
 import com.fy.sparam.core.SearchContext.ITransformable;
 import com.fy.sparam.util.StringUtils;
@@ -48,19 +49,10 @@ implements Cloneable {
 		 * @since 1.0.2
 		 */
 		String getPath() throws Exception;
-		
 	}
 	
-	/**
-	 * 使用的搜索参数对象路径分隔符
-	 * 
-	 * @author linjie
-	 * @since 1.0.2
-	 */
-	public static final String PATH_SPERATOR = ".";
-	
 	// 全局使用的搜索参数对象初始化器
-	IInitializor<PT, SCT, RT> intializor;
+	IParameterInitializor<PT, SCT, RT> intializor;
 	// 所有搜索字段类型转换器
 	Map<Class<?>, ITransformable<?>> fieldTransformer;
 	// 克隆相关
@@ -71,18 +63,14 @@ implements Cloneable {
 	Set<AbsSearcher<PT, SCT, RT, ?>> allSearchers = new HashSet<AbsSearcher<PT, SCT, RT, ?>>(); /* 不包括继承和动态关联的 */
 	Set<ParameterField<PT, SCT, RT>> allParamFields = new HashSet<ParameterField<PT, SCT, RT>>(); /* 不包括动态关联的 */
 	// 当前拥有的搜索内容
-	SearchContext<PT, SCT, RT> usingSearchContext;
+	static final String DEFAULT_SEARCH_CONTEXT_NAME = "#DEFAULT#";
+	String usingSearchContextName = DEFAULT_SEARCH_CONTEXT_NAME;
+	Map<String, SearchContext<PT, SCT, RT>> usingSearchContextMap = new HashMap<String, SearchContext<PT, SCT, RT>>();
 	// 分页信息(包括当前搜索参数和后代/关联搜索参数的, 公用一个)
 	int page;
 	int count;
 	// 所有关联搜索参数的处理计数器(防止同类进行关联导致别名冲突)
 	int joinCounter;
-	// 所有搜索内容逻辑关系检查用的数据
-	boolean isAutoAddRelation = false; /* 是否自动为条件追加逻辑关系 */
-	boolean isAutoAddAnd = true; /* 自动追加的逻辑关系是否是And, false则是Or */
-	boolean relationalCheckFlag = true; /* 用来检查连接是否完整的标志 */
-	int delimiterStartCount = 0;
-	int delimiterEndCount = 0;
 	// 动态关联相关信息, 一个搜素参数上下文统一管理
 	Map<PT, ParameterContext<PT, SCT, RT>> dynamicJoinParamContextPool; /* 动态关联起点的搜索参数树已经动态关联的搜索参数信息 */
 	PT realDynamicJoinParam; /* 被动态关联的根搜索参数进行过最短关联处理后实际用来关联的搜索参数 */
@@ -103,7 +91,7 @@ implements Cloneable {
 	 * @since 1.0.2
 	 */
 	public final void registerInheritJoinedParameter(PT fromParam, PT inheritJoinedParam,
-			JoinType joinType, RelationType relationType,
+			JoinType joinType, JoinRelationType relationType,
 			String fromFieldName, String toFieldName,
 			Object...args) throws Exception {
 		if(fromParam == null) {
@@ -137,7 +125,7 @@ implements Cloneable {
 	 * @since 1.0.2
 	 */
 	public final void registerDefaultJoinedParameter(PT fromParam, PT defaultJoinedParam,
-			JoinType joinType, RelationType relationType,
+			JoinType joinType, JoinRelationType relationType,
 			String fromFieldName, String toFieldName,
 			Object...args) throws Exception {
 		if(fromParam == null) {
@@ -167,7 +155,7 @@ implements Cloneable {
 	 */
 	public final void registerParameterField(PT belongParam, ParameterField<PT, SCT, RT> paramField, Object...args) throws Exception {
 		// 调用初始化器进行初始化(所属搜索参数中不需要额外操作)
-		this.intializor.initParameterField(paramField, args);
+		this.intializor.onInitParameterField(paramField, args);
 		// 注册到所属搜索参数中(先注册设置与字段中与搜索参数相关的属性)
 		belongParam.registerParameterField(paramField);
 		// 注册到上下文中
@@ -189,7 +177,7 @@ implements Cloneable {
 			ISearchable<?> searcher, Object...args) throws Exception {
 		AbsSearcher<PT, SCT, RT, ?> searcherReal = (AbsSearcher<PT, SCT, RT, ?>) searcher;
 		// 调用初始化器进行初始化(所属搜索参数中不需要额外操作)
-		this.intializor.initSearcher(searcherReal, args);
+		this.intializor.onInitSearcher(searcherReal, args);
 		// 注册到所属搜索参数中
 		belongParam.registerSeacher(belongParamField, searcherReal); 
 		// 生成路径, 注册到上下文中
@@ -285,6 +273,11 @@ implements Cloneable {
 	public final Collection<ParameterField<PT, SCT, RT>> getAllOutputParameterFields() {
 		List<ParameterField<PT, SCT, RT>> result = new LinkedList<ParameterField<PT, SCT, RT>>(); 
 		for(ParameterField<PT, SCT, RT> paramField : this.allParamFields) {
+			// 如果字段所属的搜索参数未被触发关联, 则跳过
+			if(paramField.belongParameter.usingJoinWorker != null 
+					&& ! paramField.belongParameter.usingJoinWorker.hasJoin) {
+				continue;
+			}
 			if(paramField.belongParameter.isAllMyFieldOutput || paramField.isOutput) {
 				result.add(paramField);
 			}
@@ -349,13 +342,14 @@ implements Cloneable {
 	 * 构造器: 指定初始化器
 	 * 
 	 * @param intializor 指定的全局初始化器
+	 * @throws Exception 初始化失败则抛出异常
 	 * 
 	 * @author linjie
 	 * @since 1.0.2
 	 */
-	ParameterContext(IInitializor<PT, SCT, RT> intializor) {
+	ParameterContext(IParameterInitializor<PT, SCT, RT> intializor) throws Exception {
 		this.intializor = intializor;
-		this.fieldTransformer = intializor.getSearcherFieldTransformers();
+		this.fieldTransformer = intializor.onGetSearcherFieldTransformers();
 	}
 	
 	/**
@@ -387,7 +381,7 @@ implements Cloneable {
 	 * @author linjie
 	 * @since 1.0.2
 	 */
-	final void generateGlobalNonConflictTableAlias(ParameterContext<PT, SCT, RT> setValContext, int startCount) {
+	final void generateGlobalNonConflictQueryAlias(ParameterContext<PT, SCT, RT> setValContext, int startCount) {
 		if(startCount < 0) {
 			startCount = 0;
 		}
@@ -396,7 +390,7 @@ implements Cloneable {
 		}
 		setValContext.joinCounter = startCount;
 		for(PT param : this.allParams) {
-			param.setTableAlias(StringUtils.concat(param.getTableAlias(), "_", setValContext.joinCounter));
+			param.setQueryAlias(StringUtils.concat(param.getQueryAlias(), "_", setValContext.joinCounter));
 			setValContext.joinCounter ++;
 		}
 	}
@@ -446,16 +440,66 @@ implements Cloneable {
 	/**
 	 * 获取当前搜索上下文
 	 * 
-	 * @return 当前搜索上下文,如果原来没有会自动建立一个
+	 * @return 当前搜索上下文, 如果原来没有会自动建立一个
+	 * 
+	 * @throws Exception 创建默认搜索上下文失败则抛出异常
+	 *  
+	 * @author linjie
+	 * @since 1.0.2
+	 */
+	final SearchContext<PT, SCT, RT> getCurrentSearchContext() {
+		if(! this.usingSearchContextMap.containsKey(DEFAULT_SEARCH_CONTEXT_NAME)) {
+			try {
+				this.registerSearchContext(DEFAULT_SEARCH_CONTEXT_NAME, SearchContext.create());
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+		return this.usingSearchContextMap.get(this.usingSearchContextName);
+	}
+	
+	/**
+	 * 注册一个搜索上下文
+	 * 
+	 * @param name 搜索上下文的名称
+	 * @param searchContext 搜索上下文
 	 * 
 	 * @author linjie
 	 * @since 1.0.2
 	 */
-	final SearchContext<PT, SCT, RT> getCurrentSearchContext() throws Exception {
-		if(this.usingSearchContext == null) {
-			this.usingSearchContext = SearchContext.create();
+	final void registerSearchContext(String name, SearchContext<PT, SCT, RT> searchContext) {
+		this.usingSearchContextMap.put(name, searchContext);
+	}
+	
+	/**
+	 * 移除搜索上下文
+	 * 
+	 * @param name 搜索上下文的名称
+	 * 
+	 * @author linjie
+	 * @since 1.0.2
+	 */
+	final void removeSearchContext(String name) {
+		if(name == null || DEFAULT_SEARCH_CONTEXT_NAME.equals(name)) {
+			return;
 		}
-		return this.usingSearchContext;
+		this.usingSearchContextMap.remove(name);
+	}
+	
+	/**
+	 * 切换当前使用的搜索上下文
+	 * 
+	 * @param name 目标搜索上下文的名称, 如果为null则切换到默认
+	 * 
+	 * @author linjie
+	 * @since 1.0.2
+	 */
+	final void switchUsingSearchContext(String name) {
+		if(name == null) {
+			this.usingSearchContextName = DEFAULT_SEARCH_CONTEXT_NAME;
+			return;
+		}
+		this.usingSearchContextName = name;
 	}
 	
 	/**
@@ -506,7 +550,7 @@ implements Cloneable {
 	final List<ParameterField<PT, SCT, RT>> getIndeedRepresentParamFields(
 			ParameterField<PT, SCT, RT> startParamField,
 			Collection<ParameterField<PT, SCT, RT>> passParamFields) {
-		List<ParameterField<PT, SCT, RT>> representFields = startParamField.representOptFields;
+		Set<ParameterField<PT, SCT, RT>> representFields = startParamField.representOptFields;
 		List<ParameterField<PT, SCT, RT>> results = new LinkedList<ParameterField<PT, SCT, RT>>();
 		if(representFields != null && ! representFields.isEmpty()) {
 			for(ParameterField<PT, SCT, RT> representField : representFields) {
@@ -837,13 +881,9 @@ implements Cloneable {
 		cloneParamContext.allParams = new HashSet<PT>(); /* 不包括继承和动态关联的 */
 		cloneParamContext.allSearchers = new HashSet<AbsSearcher<PT, SCT, RT, ?>>(); /* 不包括继承和动态关联的 */
 		cloneParamContext.allParamFields = new HashSet<ParameterField<PT, SCT, RT>>(); /* 不包括动态关联的 */
-		cloneParamContext.usingSearchContext = null;
+		cloneParamContext.usingSearchContextName = DEFAULT_SEARCH_CONTEXT_NAME;
+		cloneParamContext.usingSearchContextMap = new HashMap<String, SearchContext<PT, SCT, RT>>();
 		cloneParamContext.joinCounter = 0;
-		cloneParamContext.delimiterStartCount = 0;
-		cloneParamContext.delimiterEndCount = 0;
-		cloneParamContext.isAutoAddRelation = false; 
-		cloneParamContext.isAutoAddAnd = true;
-		cloneParamContext.relationalCheckFlag = true;
 		cloneParamContext.dynamicJoinParamContextPool = null;
 		cloneParamContext.realDynamicJoinParam = null;
 		return cloneParamContext;

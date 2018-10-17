@@ -3,9 +3,11 @@ package com.fy.sparam.core;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import com.fy.sparam.core.ParameterContext.IParameterObj;
 import com.fy.sparam.util.StringUtils;
@@ -24,7 +26,32 @@ public final class ParameterField<PT extends AbsParameter<PT, SCT, RT>, SCT, RT>
 implements IParameterObj, Cloneable {
 
 	/**
-	 * 字段名称
+	 * 字段查询名称生成策略
+	 * 
+	 * @param <PT>　搜索参数类类型
+	 * @param <SCT>　搜索内容类类型
+	 * @param <RT>　搜索结果类类型
+	 * 
+	 * @author linjie
+	 * @since 1.0.2
+	 */
+	public interface IFieldQueryNameGenerateStrategy<PT extends AbsParameter<PT, SCT, RT>, SCT, RT> {
+		
+		/**
+		 * 生成字段查询名称
+		 * 
+		 * @param param 定位的搜索参数, 不一定是当前字段所属的
+		 * @param paramField 目标搜索参数字段
+		 * @return 生成的字段查询名称, 用于添加到查询中
+		 * 
+		 * @author linjie
+		 * @since 1.0.2
+		 */
+		String generate(PT param, ParameterField<PT, SCT, RT> paramField);
+	}
+	
+	/**
+	 * 属性名称, 用于声明path等
 	 * 
 	 * @author linjie
 	 * @since 1.0.2
@@ -32,20 +59,20 @@ implements IParameterObj, Cloneable {
 	String fieldName;
 	
 	/**
-	 * 数据库属性名称
+	 * 查询字段名称
 	 * 
 	 * @author linjie
 	 * @since 1.0.2
 	 */
-	String dbFieldName;
+	String queryFieldName;
 	
 	/**
-	 * 数据库属性的别名, 可能没有
+	 * 查询字段的别名, 可能没有
 	 * 
 	 * @author linjie
 	 * @since 1.0.2
 	 */
-	String dbFieldAlias;
+	String queryFieldAlias;
 
 	/**
 	 * 是否是排序字段
@@ -147,11 +174,12 @@ implements IParameterObj, Cloneable {
 	
 	/**
 	 * 代表操作字段列表
+	 * <br/> 与{@link ParameterContext#getIndeedRepresentParamFields}配合, 目前只有设置输出这种代表操作会用到这个.
 	 * 
 	 * @author linjie
 	 * @since 1.0.2
 	 */
-	List<ParameterField<PT, SCT, RT>> representOptFields;
+	Set<ParameterField<PT, SCT, RT>> representOptFields;
 	
 	public String getFieldName() {
 		return fieldName;
@@ -160,21 +188,21 @@ implements IParameterObj, Cloneable {
 	public void setFieldName(String fieldName) {
 		this.fieldName = fieldName;
 	}
-	
-	public String getDbFieldName() {
-		return dbFieldName;
+
+	public String getQueryFieldName() {
+		return queryFieldName;
 	}
 
-	public void setDbFieldName(String dbFieldName) {
-		this.dbFieldName = dbFieldName;
+	public void setQueryFieldName(String queryFieldName) {
+		this.queryFieldName = queryFieldName;
 	}
 
-	public String getDbFieldAlias() {
-		return dbFieldAlias;
+	public String getQueryFieldAlias() {
+		return queryFieldAlias;
 	}
 
-	public void setDbFieldAlias(String dbFieldAlias) {
-		this.dbFieldAlias = dbFieldAlias;
+	public void setQueryFieldAlias(String queryFieldAlias) {
+		this.queryFieldAlias = queryFieldAlias;
 	}
 
 	public boolean isOrderBy() {
@@ -216,7 +244,6 @@ implements IParameterObj, Cloneable {
 	public void setGroupByPriority(Integer groupByPriority) {
 		this.groupByPriority = groupByPriority;
 	}
-
 	
 	/**
 	 * 获取当前搜索参数字段在搜索参数树中的路径
@@ -256,8 +283,19 @@ implements IParameterObj, Cloneable {
 	}
 
 	/**
+	 * 获取搜索参数字段所属的搜索参数
+	 * @return 所属的搜索参数
+	 * 
+	 * @author linjie
+	 * @since 1.0.2
+	 */
+	public final PT getBelongParameter() {
+		return this.belongParameter;
+	}
+	
+	/**
 	 * 获取经过表别名前缀处理的完全数据库列名
-	 * <br/> 格式为表别名前缀.数据库列名称
+	 * <br/> 格式为表别名前缀.数据库列名称, 例如: 表别名为user u, 字段user_id, 则输出u.user_id.
 	 * <br/> 不会因为关联链导致可能有多个, 因为(设置输出, 触发关联)总是选择最短关联路径, 输出是绝对的.
 	 * <br/> 可能一个对应多个经过表别名前缀处理的当前搜索范围中唯一属性名
 	 * 
@@ -266,17 +304,13 @@ implements IParameterObj, Cloneable {
 	 * @author linjie
 	 * @since 1.0.2
 	 */
-	public final String getWholeDbFieldName() {
-		ParameterField<PT, SCT, RT> searchParamField = this.belongParameter.paramContext.getIndeedSearchParameterField(this, null);
+	public final String getContextUniqueFieldName(IFieldQueryNameGenerateStrategy<PT, SCT, RT> strategy) {
 		// 拼接经过的搜索参数的表别名定位字段名称
-		return StringUtils.concat(
-				searchParamField.belongParameter.tableAlias,
-				ParameterContext.PATH_SPERATOR,
-				searchParamField.dbFieldName);
+		return strategy.generate(this.belongParameter, this);
 	}
 	
 	/**
-	 * 获取对应的搜索参数字段经过表别名前缀处理的当前搜索范围中唯一属性名
+	 * 获取对应的搜索参数字段经过的关联路径上的当前搜索范围中唯一属性名
 	 * <br/> 格式为表别名前缀(如果经过多个字段).当前搜索器所在搜索参数中的属性名称
 	 * <br/> 被关联的搜索参数字段使用实际代表操作的字段的唯一属性名, 且把途径的所有搜索参数的表别名列出.
 	 * <br/> 继承关联搜索参数的关联搜索参数字段只会使用最终子类搜索参数的表别名作为前缀.
@@ -289,25 +323,24 @@ implements IParameterObj, Cloneable {
 	 * @author linjie
 	 * @since 1.0.2
 	 */
-	public final List<String> getDbTableAliasLocateFieldNames() {
+	public final List<String> getPassedLocateFieldNames(IFieldQueryNameGenerateStrategy<PT, SCT, RT> strategy) {
 		// 如果是关联头端字段, 则找到实际代表操作的字段, 使用其所属搜索参数的表别名
 		List<ParameterField<PT, SCT, RT>> passParamFields = new LinkedList<ParameterField<PT, SCT, RT>>();
 		if(this.isMappedFromField) {
 			this.belongParameter.paramContext.getIndeedRepresentParamFields(this, passParamFields);
 		} else {
 			this.belongParameter.paramContext.getIndeedSearchParameterField(this, passParamFields);
-			// 重被关联到关联起点, 为了和getIndeedRepresentParamField的顺序对应起来, 故进行反转
+			// 从被关联到关联起点, 为了和getIndeedRepresentParamField的顺序对应起来, 故进行反转
 			Collections.reverse(passParamFields);
 		}
-		// 加入经过的搜索参数的表别名定位字段名称
-		List<String> results = new ArrayList<String>(passParamFields.size());
+		// 加入经过的搜索参数的表别名定位字段名称, 固定顺序且去重
+		Set<String> results = new LinkedHashSet<String>(passParamFields.size());
 		for(ParameterField<PT, SCT, RT> passParamField : passParamFields) {
-			AbsParameter<PT, SCT, RT> aliasParam = this.belongParameter.paramContext
+			PT aliasParam = this.belongParameter.paramContext
 					.getInheritEndParameter(passParamField.belongParameter);
-			results.add(StringUtils.concat(aliasParam.tableAlias,
-					ParameterContext.PATH_SPERATOR, passParamField.fieldName));
+			results.add(strategy.generate(aliasParam, passParamField));
 		}
-		return results;
+		return new ArrayList<String>(results);
 	}
 	
 	/**

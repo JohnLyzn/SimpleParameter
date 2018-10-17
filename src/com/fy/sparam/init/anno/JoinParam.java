@@ -7,7 +7,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 import com.fy.sparam.core.JoinWorker.JoinType;
-import com.fy.sparam.core.JoinWorker.RelationType;
+import com.fy.sparam.core.JoinWorker.JoinRelationType;
 
 /**
  * 关联外键信息的配置注解
@@ -42,5 +42,5 @@ public @interface JoinParam {
 	 * @author linjie
 	 * @since 1.0.2
 	 */
-	public RelationType relationType() default RelationType.EQ;
+	public JoinRelationType relationType() default JoinRelationType.EQ;
 }

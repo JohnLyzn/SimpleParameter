@@ -17,7 +17,7 @@ import java.util.Map;
  * @author linjie
  * @since 1.0.2
  */
-public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
+public final class SearchContext<PT extends AbsParameter<PT, SCT, RT>, SCT, RT> {
 
 	/**
 	 * 搜索操作接口
@@ -383,48 +383,24 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		String getPath() throws Exception;
 		
 		/**
-		 * 获取经过表别名前缀处理的定位属性名(唯一的范围为当前搜索参数树, 包括动态关联的部分)
-		 * <br/> 格式为表别名前缀.当前搜索参数字段所在搜索参数中的属性名称
-		 * 
-		 * @return 经过表别名前缀处理的唯一属性名
-		 *
-		 * @author linjie
-		 * @since 1.0.2
-		 */
-		String getDbTableAliasLocateFieldName() throws Exception;
-		
-		/**
-		 * 获取对应的搜索参数字段配置对应的数据库字段名称
-		 * @return 对应的搜索参数字段配置对应的数据库字段名称
+		 * 获取对应的搜索参数字段配置对应的查询字段名称
+		 * @return 对应的搜索参数字段配置对应的查询字段名称
 		 * @throws Exception 获取失败则抛出异常
 		 *
 		 * @author linjie
 		 * @since 1.0.2
 		 */
-		String getDbFieldName() throws Exception;
+		String getQueryFieldName() throws Exception;
 		
 		/**
-		 * 获取对应的搜索参数字段配置对应的数据库字段别名
-		 * @return 对应的搜索参数字段配置对应的数据库字段别名
+		 * 获取对应的搜索参数字段配置对应的查询字段别名
+		 * @return 对应的搜索参数字段配置对应的查询字段别名
 		 * @throws Exception
 		 *
 		 * @author linjie
 		 * @since 1.0.2
 		 */
-		String getDbFieldAlias() throws Exception;
-		
-		/**
-		 * 获取对应的搜索参数字段经过表别名前缀处理的完全数据库列名
-		 * <br/> 格式为表别名前缀.数据库列名称
-		 * 
-		 * @return 经过表别名前缀处理的完全数据库列名
-		 * 
-		 * @see ParameterField #getWholeDbFieldName()
-		 * 
-		 * @author linjie
-		 * @since 1.0.2
-		 */
-		String getWholeDbFieldName() throws Exception;
+		String getQueryFieldAlias() throws Exception;
 		
 		/**
 		 * 获取搜索字段的类型转换器
@@ -447,7 +423,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * @author linjie
 		 * @since 1.0.2
 		 */
-		<TT extends ITransformable<T>> TT  getTransformer(Class<TT> realTypeClass) throws Exception;
+		<TT extends ITransformable<T>> TT getTransformer(Class<TT> realTypeClass) throws Exception;
 	}
 	
 	/**
@@ -471,7 +447,7 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 * @author linjie
 		 * @since 1.0.2
 		 */
-		 <PT extends AbsParameter<?, ?, ?>> PT and(PT param) throws Exception;
+		<PT extends AbsParameter<?, ?, ?>> PT and(PT param) throws Exception;
 		
 		/**
 		 * 连接两个条件, 表示or, 可以根据需要重定向到关联的搜索参数的属性
@@ -488,24 +464,55 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 		 
 		 /**
 		  * 分割符开始, 比如'('等等, 由搜索器实现类自定义
+		  * <br/> 裸插入开始分隔符, 用于连续出现的情况, 如: ((( ...
 		  * <br/> 必须与结束分隔符成对出现
 		  * 
 		  * @param args 可选参数, 由搜索器实现类自定义决定是什么实现
-		  * @return 当前连接器的实例, 形成链型调用, 后必接连接器的中的内容
+		  * @return 传入的搜索参数的实例, 形成链型调用
 		  * 
 		  * @throws Exception
 		  *
 		  * @author linjie
 		  * @since 1.0.2
 		  */
-		 IRelationalable<T> ds(Object...args) throws Exception;
+		 <PT extends AbsParameter<?, ?, ?>> PT ds(PT param, Object... params) throws Exception;
+		 
+		 /**
+		  * 分割符开始, 比如'('等等, 由搜索器实现类自定义
+		  * <br/> 以AND连接逻辑开始时插入分隔符, 如: AND ( ...
+		  * <br/> 必须与结束分隔符成对出现
+		  * 
+		  * @param args 可选参数, 由搜索器实现类自定义决定是什么实现
+		  * @return 传入的搜索参数的实例, 形成链型调用
+		  * 
+		  * @throws Exception
+		  *
+		  * @author linjie
+		  * @since 1.0.2
+		  */
+		 <PT extends AbsParameter<?, ?, ?>> PT andDs(PT param, Object...args) throws Exception;
 		
+		 /**
+		  * 分割符开始, 比如'('等等, 由搜索器实现类自定义
+		  * <br/> 以OR连接逻辑开始时插入分隔符, 如: OR ( ...
+		  * <br/> 必须与结束分隔符成对出现
+		  * 
+		  * @param args 可选参数, 由搜索器实现类自定义决定是什么实现
+		  * @return 传入的搜索参数的实例, 形成链型调用
+		  * 
+		  * @throws Exception
+		  *
+		  * @author linjie
+		  * @since 1.0.2
+		  */
+		 <PT extends AbsParameter<?, ?, ?>> PT orDs(PT param, Object...args) throws Exception;
+		 
 		 /**
 		  * 分割符结束, 比如')'等等, 由搜索器实现类自定义
 		  * <br/> 必须与开始分隔符成对出现
 		  * 
 		  * @param args 可选参数, 由搜索器实现类自定义决定是什么实现
-		  * @return 当前连接器的实例, 形成链型调用, 后必接连接器的中的内容
+		  * @return 传入的搜索参数的实例, 形成链型调用
 		  * 
 		  * @throws Exception
 		  *
@@ -596,6 +603,142 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 	// 描述搜索内容添加者和添加的搜索内容的映射关系, 当进行回滚时要用到
 	private Map<SearchContentSource<SCT>, Map<String, List<SCT>>> contentMapper 
 		= new HashMap<SearchContentSource<SCT>, Map<String, List<SCT>>>();
+	// 所有搜索内容逻辑关系检查用的数据
+	private boolean isSkipFirstRelation = true;
+	private boolean relationalCheckFlag = true; /* 用来检查连接是否完整的标志 */
+	private int delimiterStartCount = 0;
+	private int delimiterEndCount = 0;
+	
+	private boolean isAutoAddRelation = false; /* 是否自动为条件追加逻辑关系 */
+	private boolean isAutoAddAnd = true; /* 自动追加的逻辑关系是否是And, false则是Or */
+	
+	/**
+	 * 启用关系自动追加
+	 * 
+	 * @param isAnd 是否使用AND连接关系, 为false则使用OR连接关系
+	 * 
+	 * @author linjie
+	 * @since 1.0.2
+	 */
+	final void enableAutoRelation(boolean isAnd) {
+		// 设置自动关系追加
+		this.isAutoAddRelation = true;
+		this.isAutoAddAnd = isAnd;
+	}
+	
+	/**
+	 * 关闭关系自动追加
+	 * 
+	 * @author linjie
+	 * @since 1.0.2
+	 */
+	final void disableAutoRelation() {
+		// 关闭自动关系追加
+		this.isAutoAddRelation = false;
+		this.isAutoAddAnd = true;
+	}
+	
+	/**
+	 * 当前是否为关系自动追加
+	 * 
+	 * @author linjie
+	 * @since 1.0.2
+	 */
+	final boolean isAutoAddRelation() {
+		return this.isAutoAddRelation;
+	}
+	
+	/**
+	 * 当前关系自动追加是否使用AND连接关系
+	 * 
+	 * @author linjie
+	 * @since 1.0.2
+	 */
+	final boolean isAutoAddAnd() {
+		return this.isAutoAddAnd;
+	}
+	
+	/**
+	 * 标记遇到开始分割符
+	 * 
+	 * @author linjie
+	 * @since 1.0.2
+	 */
+	final void meetDelimiterStart() {
+		this.delimiterStartCount ++;
+	}
+	
+	/**
+	 * 标记遇到结束分割符
+	 * 
+	 * @author linjie
+	 * @since 1.0.2
+	 */
+	final void meetDelimiterEnd() {
+		this.delimiterEndCount ++;
+	}
+	
+	/**
+	 * 判断是否所有分割符成对出现
+	 * 
+	 * @author linjie
+	 * @since 1.0.2
+	 */
+	final boolean isDemiterInPair() {
+		return this.delimiterStartCount == this.delimiterEndCount;
+	}
+	
+	/**
+	 * 设置第一次添加关系是否忽略
+	 * 
+	 * @author linjie
+	 * @since 1.0.2
+	 */
+	final void setSkipFirstRelation(boolean isSkipFirstRelation) {
+		this.isSkipFirstRelation = isSkipFirstRelation;
+	}
+	
+	/**
+	 * 第一次添加关系是否忽略
+	 * 
+	 * @author linjie
+	 * @since 1.0.2
+	 */
+	final boolean isSkipFirstRelation() {
+		return this.isSkipFirstRelation;
+	}
+	
+	/**
+	 * 开始搜索关系检查
+	 * 
+	 * @author linjie
+	 * @since 1.0.2
+	 */
+	final void startSearchRelationCheck() {
+		this.relationalCheckFlag = true;
+	}
+	
+	/**
+	 * 结束搜索关系检查
+	 * 
+	 * @author linjie
+	 * @since 1.0.2
+	 */
+	final void endSearchRelationCheck() {
+		this.relationalCheckFlag = false;
+	}
+	
+	/**
+	 * 获取搜索关系检查标志
+	 * 
+	 * @return true表示已经添加了连接关系, false表示还没有
+	 * 
+	 * @author linjie
+	 * @since 1.0.2
+	 */
+	final boolean getRelationalCheckFlag() {
+		return this.relationalCheckFlag;
+	}
 	
 	/**
 	 * 创建一个搜索上下文
@@ -719,6 +862,12 @@ public final class SearchContext<PT extends AbsParameter<PT, SCT, ?>, SCT, RT> {
 	final void clear() throws Exception {
 		this.contents.clear();
 		this.contentMapper.clear();
+		
+		this.isAutoAddAnd = false;
+		this.isAutoAddRelation = false;
+		this.relationalCheckFlag = true;
+		this.delimiterStartCount = 0;
+		this.delimiterEndCount = 0;
 	}
 	
 	/**

@@ -15,7 +15,7 @@ import com.fy.sparam.init.anno.TableMeta;
  */
 @TableMeta(name= "t_customer", alias = "c")
 @InheritMeta(fieldName = "user_id", inheritBy = "userID")
-public class CustomerParameter extends UserParamter {
+public class CustomerParameter extends UserParameter {
 	
 	/**
 	 * 客户创建时间

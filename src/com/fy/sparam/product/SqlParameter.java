@@ -4,16 +4,19 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.fy.sparam.core.AbsParameter;
 import com.fy.sparam.core.JoinWorker.JoinType;
-import com.fy.sparam.core.JoinWorker.RelationType;
+import com.fy.sparam.core.JoinWorker.JoinRelationType;
 import com.fy.sparam.core.ParameterContext;
 import com.fy.sparam.core.ParameterField;
+import com.fy.sparam.core.ParameterField.IFieldQueryNameGenerateStrategy;
 import com.fy.sparam.core.SearchContext.ISearchable;
 import com.fy.sparam.init.anno.AnnotationInitializor;
 import com.fy.sparam.test.FormatUtils;
@@ -164,7 +167,7 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 				// 拼接select内容
 				StringBuilder selectEntitiesSqlBuilder = new StringBuilder();
 				for(SqlParameter outputParam : outputParams) {
-					selectEntitiesSqlBuilder.append(outputParam.getTableAlias()).append(".*,");
+					selectEntitiesSqlBuilder.append(outputParam.getQueryAlias()).append(".*,");
 				}
 				selectEntitiesSqlBuilder.deleteCharAt(selectEntitiesSqlBuilder.length() - 1); /* 删除最后的',' */
 				// 添加到搜索内容中
@@ -193,20 +196,20 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 				// 拼接select的字段内容
 				int suffixNumber = 0; /* 字段别名的后缀数字, 这样能保证一定不会重复 */
 				StringBuilder selectSqlBuilder = new StringBuilder();
-				List<String> appearDbFieldNames = new ArrayList<String>(outputParamFields.size());
+				Set<String> appearDbFieldNames = new HashSet<String>(outputParamFields.size());
 				List<String[]> outputFieldNames = new ArrayList<String[]>(outputParamFields.size());
 				for(ParameterField<SqlParameter, SqlPiece, SqlResult> paramField : outputParamFields) {
 					// 拼接select语句中输出的内容
-					selectSqlBuilder.append(paramField.getWholeDbFieldName());
+					selectSqlBuilder.append(param.generateQueryFieldName(paramField));
 					// 把输出的列对应的属性名称按顺序记录下来
-					List<String> dbTableAliasLocatFieldNames = paramField.getDbTableAliasLocateFieldNames();
+					List<String> dbTableAliasLocatFieldNames = param.generatePassedLocateFieldNames(paramField);
 					outputFieldNames.add(dbTableAliasLocatFieldNames.toArray(new String[dbTableAliasLocatFieldNames.size()]));
 					// 如果该字段之前已经出现过了, 那么加上别名
-					String dbFieldName = paramField.getDbFieldName();
+					String dbFieldName = paramField.getQueryFieldName();
 					if(appearDbFieldNames.contains(dbFieldName)) {
 						selectSqlBuilder.append(" AS ");
 						// 如果自己配置了列别名, 那么使用配置的列, 错误不管
-						String alias = paramField.getDbFieldAlias();
+						String alias = paramField.getQueryFieldAlias();
 						if(alias != null && ! alias.isEmpty()) {
 							selectSqlBuilder.append(alias);
 						} else {
@@ -274,13 +277,13 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 				// 如果有指定删除哪些就不加入当前搜索参数对应的表别名, 否则加入当前搜索参数对应的表别名作为删除目标
 				if(needDeleteParams != null && ! needDeleteParams.isEmpty()) {
 					for(SqlParameter needDeleteParam : needDeleteParams) {
-						needDelteTableAlias.add(needDeleteParam.getTableAlias());
+						needDelteTableAlias.add(needDeleteParam.getQueryAlias());
 					}
 				} else {
 					for(SqlParameter inheritedFormParam : param.getInheritedFromParameters()) {
-						needDelteTableAlias.add(inheritedFormParam.getTableAlias());
+						needDelteTableAlias.add(inheritedFormParam.getQueryAlias());
 					}
-					needDelteTableAlias.add(param.getTableAlias());
+					needDelteTableAlias.add(param.getQueryAlias());
 				}
 				result.addSqlPiece(new SqlPiece(StringUtils.concatAsStr(
 						"DELETE ", FormatUtils.formatArrayStr(needDelteTableAlias.toString()))));
@@ -298,8 +301,8 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 			@Override
 			public void build(SqlParameter param, SqlResult result, Object... args) throws Exception {
 				// 构建变化的部分
-				String tableName = param.getTableName();
-				String tableAlias = param.getTableAlias();
+				String tableName = param.getQueryName();
+				String tableAlias = param.getQueryAlias();
 				result.addSqlPiece(new SqlPiece(StringUtils.concatAsStr(
 						"UPDATE ", tableName," ", tableAlias, " ")));
 			}
@@ -333,7 +336,7 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 							SqlSearcher<?> fieldSearcher = (SqlSearcher<?>) searchField;
 							ParameterField<SqlParameter, SqlPiece, SqlResult> paramField =
 									fieldSearcher.getBelongParameterField();
-							String fieldName = paramField.getWholeDbFieldName();
+							String fieldName = param.generateQueryFieldName(paramField);
 							setSqlBuilder.append(" ").append(fieldName).append(" = ?").append(",");
 						}
 						setSqlBuilder.deleteCharAt(setSqlBuilder.length() - 1);
@@ -355,8 +358,8 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 	
 			@Override
 			public void build(SqlParameter param, SqlResult result, Object... args) throws Exception {
-				String tableName = param.getTableName();
-				String tableAlias = param.getTableAlias();
+				String tableName = param.getQueryName();
+				String tableAlias = param.getQueryAlias();
 				result.addSqlPiece(new SqlPiece(StringUtils.concatAsStr(
 						" FROM ", tableName, " ", tableAlias, " ")));
 			}
@@ -446,7 +449,7 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 				Collection<ParameterField<SqlParameter, SqlPiece, SqlResult>> allParamFields = 
 						param.getParameterContext().getAllParameterFields();
 				for(ParameterField<SqlParameter, SqlPiece, SqlResult> paramField : allParamFields) {
-					String fieldName = paramField.getWholeDbFieldName();
+					String fieldName = param.generateQueryFieldName(paramField);
 					if(paramField.isOrderBy()) {
 						Integer priority = paramField.getOrderByPriority();
 						// 相同优先级的作concat处理
@@ -535,6 +538,88 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 		}
 	}
 
+	/**
+	 * 定义sql成员常量
+	 * 
+	 * @author linjie
+	 * @since 1.0.2
+	 */
+	protected enum FieldNameGenerateStrategy {
+		
+		/**
+		 * 数据库查询格式
+		 * 
+		 * @author linjie
+		 * @since 1.0.2
+		 */
+		DB_FIELD_NAME(new IFieldQueryNameGenerateStrategy<SqlParameter, SqlPiece, SqlResult>() {
+
+			@Override
+			public String generate(SqlParameter param,
+					ParameterField<SqlParameter, SqlPiece, SqlResult> paramField) {
+				return StringUtils.concatAsStr(param.getQueryAlias(),
+						FieldNameGenerateStrategy.PATH_SPERATOR,
+						paramField.getQueryFieldName());
+			}
+		}),
+		
+		/**
+		 * 对象查询格式, 用于HQL和返回字段标记
+		 * 
+		 * @author linjie
+		 * @since 1.0.2
+		 */
+		OBJ_FIELD_NAME(new IFieldQueryNameGenerateStrategy<SqlParameter, SqlPiece, SqlResult>() {
+
+			@Override
+			public String generate(SqlParameter param,
+					ParameterField<SqlParameter, SqlPiece, SqlResult> paramField) {
+				return StringUtils.concatAsStr(param.getQueryAlias(),
+						FieldNameGenerateStrategy.PATH_SPERATOR,
+						paramField.getFieldName().replace("$", ""));
+			}
+		});
+		
+		/**
+		 * 字段查询名称使用的分隔符
+		 * 
+		 * @author linjie
+		 * @since 1.0.2
+		 */
+		private static final String PATH_SPERATOR = ".";
+		
+		/**
+		 * 字段查询名称生成策略实例
+		 * 
+		 * @author linjie
+		 * @since 1.0.2
+		 */
+		private final IFieldQueryNameGenerateStrategy<SqlParameter, SqlPiece, SqlResult> strategy;
+		
+		/**
+		 * 构造一个字段查询名称生成策略实例常量
+		 * 
+		 * @param strategy 字段查询名称生成策略实例
+		 * 
+		 * @author linjie
+		 * @since 1.0.2
+		 */
+		private FieldNameGenerateStrategy(IFieldQueryNameGenerateStrategy<SqlParameter, SqlPiece, SqlResult> strategy) {
+			this.strategy = strategy;
+		}
+		
+		/**
+		 * 获取当前常量使用的字段查询名称生成策略实例
+		 * 
+		 * @return 当前常量使用的字段查询名称生成策略实例
+		 * 
+		 * @author linjie
+		 * @since 1.0.2
+		 */
+		public IFieldQueryNameGenerateStrategy<SqlParameter, SqlPiece, SqlResult> getStrategy() {
+			return strategy;
+		}
+	}
 
 	/**
 	 * 定义sql语句成员使用的sql构建器接口
@@ -651,7 +736,7 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 		}
 		super.setPage(page);
 	}
-	
+
 	/**
 	 * 加入自定义的from的sql语句(注意尾部加空格)
 	 * 
@@ -726,7 +811,7 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 		this.clearSearchEntry(SqlMember.ORDER_BY.name());
 		this.addSearchEntry(SqlMember.ORDER_BY.name(), new SqlPiece(orderBy));
 	}
-
+	
 	/**
 	 * 设置是否忽略Limit语句
 	 * @param isIgnoreLimit 是否忽略Limit语句, <tt>true</tt>表示忽略, <tt>false</tt>是默认情况, 表示不忽略
@@ -760,15 +845,41 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 		this.isIgnoreOrderBy = isIgnoreOrderBy;
 	}
 	
+	/**
+	 * 根据当前上下文环境生成查询字段名称
+	 * 
+	 * @param paramField 查询的搜索参数字段
+	 * @return 查询字段名称
+	 * 
+	 * @author linjie
+	 * @since 1.0.2
+	 */
+	String generateQueryFieldName(ParameterField<SqlParameter, SqlPiece, SqlResult> paramField) {
+		return paramField.getContextUniqueFieldName(FieldNameGenerateStrategy.DB_FIELD_NAME.getStrategy());
+	}
+	
+	/**
+	 * 根据当前上下文环境生成查询字段关联路径中所有字段的定位名称
+	 * 
+	 * @param paramField 查询的搜索参数字段
+	 * @return 查询字段关联路径中所有字段的定位名称
+	 * 
+	 * @author linjie
+	 * @since 1.0.2
+	 */
+	List<String> generatePassedLocateFieldNames(ParameterField<SqlParameter, SqlPiece, SqlResult> paramField) {
+		return paramField.getPassedLocateFieldNames(FieldNameGenerateStrategy.OBJ_FIELD_NAME.getStrategy());
+	}
+	
 	@Override
-	protected void onJoin(SqlParameter fromParam, JoinType joinType, RelationType relationType,
+	protected void onJoin(SqlParameter fromParam, JoinType joinType, JoinRelationType relationType,
 			ParameterField<SqlParameter, SqlPiece, SqlResult> fromField,
-			ParameterField<SqlParameter, SqlPiece, SqlResult> toField) throws Exception {
-		String mappedFromDbTableAlias = fromParam.getTableAlias();
-		String mappedFromDbFieldName = fromField.getDbFieldName();
-		String mappedToDbTableName = this.getTableName();
-		String mappedToDbTableAlias = this.getTableAlias();
-		String mappedToDbFieldName = toField.getDbFieldName();
+			ParameterField<SqlParameter, SqlPiece, SqlResult> toField,
+			SqlResult extraQuery) throws Exception {
+		String mappedFromQueryFieldName = fromParam.generateQueryFieldName(fromField);
+		String mappedToDbTableAlias = this.getQueryAlias();
+		String mappedToDbTableName = this.getQueryName();
+		String mappedToQueryFieldName = this.generateQueryFieldName(toField);
 		// 根据关联类型确定关联sql语句
 		String joinTypeStr = null;
 		switch(joinType) {
@@ -786,37 +897,50 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 		String onStr = null;
 		switch(relationType) {
 		case EQ: default:
-			onStr = StringUtils.concatAsStr(mappedFromDbTableAlias, ".", mappedFromDbFieldName,
-					" = ", mappedToDbTableAlias, ".", mappedToDbFieldName);
+			onStr = StringUtils.concatAsStr(mappedFromQueryFieldName,
+					" = ", mappedToQueryFieldName);
 			break;
 		case NOT_EQ:
-			onStr = StringUtils.concatAsStr(mappedFromDbTableAlias, ".", mappedFromDbFieldName,
-					" <> ", mappedToDbTableAlias, ".", mappedToDbFieldName);
+			onStr = StringUtils.concatAsStr(mappedFromQueryFieldName,
+					" <> ", mappedToQueryFieldName);
 			break;
 		case IN:
-			onStr = StringUtils.concatAsStr(mappedFromDbTableAlias, ".", mappedFromDbFieldName,
-					" IN (", mappedToDbTableAlias, ".", mappedToDbFieldName, ")");
+			onStr = StringUtils.concatAsStr(mappedFromQueryFieldName,
+					" IN (", mappedToQueryFieldName, ")");
 			break;
 		case NOT_IN:
-			onStr = StringUtils.concatAsStr(mappedFromDbTableAlias, ".", mappedFromDbFieldName,
-					" NOT IN (", mappedToDbTableAlias, ".", mappedToDbFieldName, ")");
+			onStr = StringUtils.concatAsStr(mappedFromQueryFieldName,
+					" NOT IN (", mappedToQueryFieldName, ")");
 			break;
 		}
+		// 如果有额外查询, 加入ON后的sql语句
+		if(extraQuery != null) {
+			onStr = StringUtils.concatAsStr(onStr, " ", extraQuery.getSql());
+		}
 		this.addSearchEntry(SqlMember.JOIN.name(), new SqlPiece(StringUtils.concatAsStr(joinTypeStr, 
-				" ", mappedToDbTableName, " ", mappedToDbTableAlias, " ON ", onStr, " ")));
+				" ", mappedToDbTableName, " ", mappedToDbTableAlias, " ON ", onStr, " "),
+				extraQuery.getVals()));
+	}
+	
+	@Override
+	protected SqlResult onJoinExtra() throws Exception {
+		SqlResult result = new SqlResult();
+		List<SqlPiece> whereSqlPieces = this.getSearchEntry(SqlMember.WHERE.name());
+		if(! whereSqlPieces.isEmpty()) {
+			result.addSqlPieces(whereSqlPieces);
+		}
+		return result;
 	}
 
 	@Override
 	protected SqlResult onBuild(Object... args) throws Exception {
 		// 获取构建的模式
-		BuildMode buildMode = null;
+		BuildMode buildMode = BuildMode.SELECT_ENTITIES;
 		if(args != null && args.length > 0) {
 			if(!(args[0] instanceof BuildMode)) {
 				throw new IllegalArgumentException("选择的获取结果类型无效, 必须为SqlParameter.BuildMode常量的一项.");
 			}
 			buildMode = (BuildMode) args[0];
-		} else {
-			buildMode = BuildMode.SELECT_ENTITIES;
 		}
 		SqlResult result = buildMode.build(this, args);
 		result.addSqlPiece(new SqlPiece(";"));
@@ -844,7 +968,7 @@ public class SqlParameter extends AbsParameter<SqlParameter, SqlPiece, SqlResult
 		Collection<ParameterField<SqlParameter, SqlPiece, SqlResult>> paramFields = 
 				param.getParameterContext().getAllParameterFields();
 		for(ParameterField<SqlParameter, SqlPiece, SqlResult> paramField : paramFields) {
-			String fieldName = paramField.getWholeDbFieldName();
+			String fieldName = param.generateQueryFieldName(paramField);
 			if(paramField.isGroupBy()) {
 				Integer priority = paramField.getGroupByPriority();
 				// 相同优先级的作concat处理

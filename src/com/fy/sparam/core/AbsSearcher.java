@@ -32,35 +32,85 @@ implements IParameterObj, ISearchable<T>, IRelationalable<T>, Cloneable {
 	boolean isNeedRelationCheck = true;
 	String path;
 	
+	/**
+	 * 获取搜索器所属的搜索参数
+	 * @return 搜索器所属的搜索参数 
+	 * 
+	 * @author linjie
+	 * @since 1.0.2
+	 */
+	public final PT getBelongParameter() {
+		return belongParameter;
+	}
+	
+	/**
+	 * 获取搜索器对应的搜索参数字段
+	 * @return 搜索器对应的搜索参数字段, 不会为null
+	 * 
+	 * @author linjie
+	 * @since 1.0.2
+	 */
+	public final ParameterField<PT, SCT, RT> getBelongParameterField() {
+		return belongParameterField;
+	}
+	
+	/**
+	 * 获取搜索器实际搜索的搜索参数字段
+	 * @return 搜索器实际搜索的搜索参数字段, 不会为null
+	 * 
+	 * @author linjie
+	 * @since 1.0.2
+	 */
+	public final ParameterField<PT, SCT, RT> getSearchParameterField() {
+		return this.belongParameter.paramContext
+				.getIndeedSearchParameterField(this.belongParameterField, null);
+	}
+	
 	@Override
 	public final <RPT extends AbsParameter<?, ?, ?>> RPT and(RPT param) throws Exception {
-		if(! this.belongParameter.paramContext.relationalCheckFlag) {
-			this.belongParameter.paramContext.relationalCheckFlag = true;
-			this.isNeedRelationCheck = false;
-			this.onAnd();
-			this.isNeedRelationCheck = true;
+		if(this.belongParameter.paramContext.getCurrentSearchContext().isSkipFirstRelation()
+			&& this.belongParameter.paramContext.getCurrentSearchContext().getRelationalCheckFlag()) {
+			return param;
 		}
+		this.belongParameter.paramContext.getCurrentSearchContext().startSearchRelationCheck();
+		this.isNeedRelationCheck = false;
+		this.onAnd();
+		this.isNeedRelationCheck = true;
 		return param;
 	}
 
 	@Override
 	public final <RPT extends AbsParameter<?, ?, ?>> RPT or(RPT param) throws Exception {
-		if(! this.belongParameter.paramContext.relationalCheckFlag) {
-			this.belongParameter.paramContext.relationalCheckFlag = true;
-			this.isNeedRelationCheck = false;
-			this.onOr();
-			this.isNeedRelationCheck = true;
+		if(this.belongParameter.paramContext.getCurrentSearchContext().isSkipFirstRelation()
+			&& this.belongParameter.paramContext.getCurrentSearchContext().getRelationalCheckFlag()) {
+			return param;
 		}
+		this.belongParameter.paramContext.getCurrentSearchContext().startSearchRelationCheck();
+		this.isNeedRelationCheck = false;
+		this.onOr();
+		this.isNeedRelationCheck = true;
 		return param;
 	}
 
 	@Override
-	public final IRelationalable<T> ds(Object... params) throws Exception {
+	public final <PT1 extends AbsParameter<?, ?, ?>> PT1 ds(PT1 param, Object... params) throws Exception {
 		this.isNeedRelationCheck = false;
 		this.onDelimiterStart(params);
 		this.isNeedRelationCheck = true;
-		this.belongParameter.paramContext.delimiterStartCount ++;
-		return this;
+		this.belongParameter.paramContext.getCurrentSearchContext().meetDelimiterStart();
+		return param;
+	}
+	
+	@Override
+	public final <PT1 extends AbsParameter<?, ?, ?>> PT1 andDs(PT1 param, Object... params) throws Exception {
+		this.and(null);
+		return this.ds(param, params);
+	}
+	
+	@Override
+	public final <PT1 extends AbsParameter<?, ?, ?>> PT1 orDs(PT1 param, Object... params) throws Exception {
+		this.or(null);
+		return this.ds(param, params);
 	}
 
 	@Override
@@ -68,7 +118,7 @@ implements IParameterObj, ISearchable<T>, IRelationalable<T>, Cloneable {
 		this.isNeedRelationCheck = false;
 		this.onDelimiterEnd(params);
 		this.isNeedRelationCheck = true;
-		this.belongParameter.paramContext.delimiterEndCount ++;
+		this.belongParameter.paramContext.getCurrentSearchContext().meetDelimiterEnd();
 		return this;
 	}
 
@@ -311,24 +361,13 @@ implements IParameterObj, ISearchable<T>, IRelationalable<T>, Cloneable {
 	}
 	
 	@Override
-	public final String getDbTableAliasLocateFieldName() throws Exception {
-		List<String> results = this.belongParameterField.getDbTableAliasLocateFieldNames();
-		return results.get(results.size() - 1);
+	public final String getQueryFieldName() throws Exception {
+		return this.belongParameterField.getQueryFieldName();
 	}
 	
 	@Override
-	public final String getDbFieldName() throws Exception {
-		return this.belongParameterField.dbFieldName;
-	}
-	
-	@Override
-	public final String getDbFieldAlias() throws Exception {
-		return this.belongParameterField.dbFieldAlias;
-	}
-	
-	@Override
-	public final String getWholeDbFieldName() throws Exception {
-		return this.belongParameterField.getWholeDbFieldName();
+	public final String getQueryFieldAlias() throws Exception {
+		return this.belongParameterField.getQueryFieldAlias();
 	}
 	
 	@Override
@@ -336,7 +375,7 @@ implements IParameterObj, ISearchable<T>, IRelationalable<T>, Cloneable {
 	public final ITransformable<T> getTransformer() throws Exception {
 		// 通过搜索器的泛型类型找到对应的搜索字段类型转换器
 		ParameterContext<PT, SCT, RT> paramContext = this.belongParameter.paramContext;
-		Class<T> searcherTypeclazz = (Class<T>) paramContext.intializor.getSearcherFieldTypeClass(this);
+		Class<T> searcherTypeclazz = (Class<T>) paramContext.intializor.onGetSearcherFieldTypeClass(this);
 		ITransformable<T> transformer = (ITransformable<T>) paramContext.getFieldTransformer(searcherTypeclazz);
 		if(transformer == null) {
 			throw new IllegalArgumentException(format(
@@ -354,7 +393,7 @@ implements IParameterObj, ISearchable<T>, IRelationalable<T>, Cloneable {
 		}
 		// 通过搜索器的泛型类型找到对应的搜索字段类型转换器
 		ParameterContext<PT, SCT, RT> paramContext = this.belongParameter.paramContext;
-		Class<T> searcherTypeclass = (Class<T>) paramContext.intializor.getSearcherFieldTypeClass(this);
+		Class<T> searcherTypeclass = (Class<T>) paramContext.intializor.onGetSearcherFieldTypeClass(this);
 		ITransformable<T> transformer = (ITransformable<T>) paramContext.getFieldTransformer(searcherTypeclass);
 		if(transformer == null) {
 			throw new IllegalArgumentException(format(
@@ -369,72 +408,30 @@ implements IParameterObj, ISearchable<T>, IRelationalable<T>, Cloneable {
 		return (TT) transformer;
 	}
 	
-	/**
-	 * 
-	 * @return
-	 * 
-	 * @author linjie
-	 * @since 1.0.2
-	 */
-	public final PT getBelongParameter() {
-		return belongParameter;
-	}
-	
-	/**
-	 * 
-	 * @return
-	 * 
-	 * @author linjie
-	 * @since 1.0.2
-	 */
-	public final ParameterField<PT, SCT, RT> getBelongParameterField() {
-		return belongParameterField;
-	}
-	
 	@Override
 	public String toString() {
 		return StringUtils.concat(super.toString(), " WITH PATH ", this.belongParameterField.path);
 	}
 	
-	/**
-	 * 发起对字段的查询时进行的处理
-	 * <br/> 进行关联冗余减少处理, 即对搜索信息所属的搜索参数触发关联操作
-	 * 
-	 * @author linjie
-	 * @since 1.0.2
-	 */
-	final ParameterField<PT, SCT, RT> preparingDoSearch() throws Exception {
-		ParameterField<PT, SCT, RT> searchParamField = this.belongParameter.paramContext
-				.getIndeedSearchParameterField(this.belongParameterField, null);
-		// 设置搜索的字段为被搜索
-		searchParamField.isSearched = true;
-		searchParamField.belongParameter.hasFieldSearched = true;
-		// 如果实际搜索的搜索参数字段所属的搜索参数之前没有进行过关联处理, 这里进行执行
-		JoinWorker<PT, SCT, RT> joinWorker = searchParamField.belongParameter.usingJoinWorker;
-		if(joinWorker != null) {
-			joinWorker.doJoinWork();
-		}
-		return searchParamField;
-	} 
-	
 	@Override
 	protected final void addSearchEntry(String key, SCT searchContent) throws Exception {
 		if(this.isNeedRelationCheck) {
-			if(! this.belongParameter.paramContext.relationalCheckFlag) { /* 前面添加了搜索器的搜索内容 */
+			/* 前面添加了搜索器的搜索内容 */
+			if(! this.belongParameter.paramContext.getCurrentSearchContext().getRelationalCheckFlag()) {
 				// 如果没有开启自动追加逻辑关系, 在没有确定搜索内容间逻辑关系情况下则报错
-				if(! this.belongParameter.paramContext.isAutoAddRelation) {
+				if(! this.belongParameter.paramContext.getCurrentSearchContext().isAutoAddRelation()) {
 					throw new IllegalArgumentException("上一个条件和当前条件没有确定逻辑关系, 请在上一个条件的末尾调用and或or方法,"
 							+ " 或使用搜索参数的above.and或or方法确定条件间的逻辑关系!");
 				}
 				// 开启自动追加逻辑关系
-				if(this.belongParameter.paramContext.isAutoAddAnd) {
+				if(this.belongParameter.paramContext.getCurrentSearchContext().isAutoAddAnd()) {
 					this.and(null);
 				} else {
 					this.or(null);
 				}
 			}
 			// 设置逻辑关系标记为false, 连续两次调用当前方法且无自动追加逻辑关系情况下会报错
-			this.belongParameter.paramContext.relationalCheckFlag = false;
+			this.belongParameter.paramContext.getCurrentSearchContext().endSearchRelationCheck();
 		}
 		// 添加搜索内容到搜索上下文
 		SearchContext<PT, SCT, RT> usingSearchContext = this.belongParameter.paramContext.getCurrentSearchContext();
@@ -809,4 +806,24 @@ implements IParameterObj, ISearchable<T>, IRelationalable<T>, Cloneable {
 	 * @since 1.0.2
 	 */
 	protected void onSetOutput(boolean isOuput) throws Exception {}
+	
+	/**
+	 * 发起对字段的查询时进行的处理
+	 * <br/> 进行关联冗余减少处理, 即对搜索信息所属的搜索参数触发关联操作
+	 * 
+	 * @author linjie
+	 * @since 1.0.2
+	 */
+	private ParameterField<PT, SCT, RT> preparingDoSearch() throws Exception {
+		ParameterField<PT, SCT, RT> searchParamField = this.getSearchParameterField();
+		// 设置搜索的字段为被搜索
+		searchParamField.isSearched = true;
+		searchParamField.belongParameter.hasFieldSearched = true;
+		// 如果实际搜索的搜索参数字段所属的搜索参数之前没有进行过关联处理, 这里进行执行
+		JoinWorker<PT, SCT, RT> joinWorker = searchParamField.belongParameter.usingJoinWorker;
+		if(joinWorker != null) {
+			joinWorker.doJoinWork();
+		}
+		return searchParamField;
+	}
 }

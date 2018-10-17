@@ -1,7 +1,6 @@
 package com.fy.sparam.test;
 
-import java.util.Date;
-import java.util.List;
+import java.util.Arrays;
 
 import com.fy.sparam.product.SqlParameter;
 import com.fy.sparam.product.SqlParameter.BuildMode;
@@ -24,16 +23,48 @@ public class Test {
 //		param.createDate.isNotNull();
 //		System.out.println(param.build().getSql());
 		
-//		OrderParameter param = SqlParameter.getParameter(OrderParameter.class);
-//		OrderParameter param1 = SqlParameter.getParameter(OrderParameter.class);
-//		param.join(param1, null, null, param.orderID, param1.orderID);
-//		param1.orderID.setOutput(true);
-//		SqlResult result = param.build(BuildMode.SELECT_FIELDS);
+		OrderParameter param = SqlParameter.getParameter(OrderParameter.class);
+		OrderParameter param1 = SqlParameter.getParameter(OrderParameter.class);
+		param.join(param1, null, null, param.orderID, param1.orderID,
+				"{orderNumber}:eq(1000)");
+		param1.orderNumber.setOutput(true);
+		SqlResult result = param.build(BuildMode.SELECT_FIELDS);
+		System.out.println(result.getSql());
+		System.out.println(Arrays.asList(result.getVals()));
 //		List<String[]> foo = result.getSelectedFieldNames();
 		
-		CustomerParameter param = SqlParameter.getParameter(CustomerParameter.class);
-		System.out.println(param.createDate.eq(new Date()));
-		System.out.println(param.build().getSql());
+//		CustomerParameter param = SqlParameter.getParameter(CustomerParameter.class);
+//		param.ds(param).createDate.eq(new Date()).andDs(param).name.like("123").de().de();
+//		SqlResult result = param.build();
+//		System.out.println(result.getSql());
+		
+//		CustomerParameter param = SqlParameter.getParameter(CustomerParameter.class);
+//		param.setAllMyFieldOutput(true);
+//		param.userID.eq("1111");
+//		param.userID.setOutput(true);
+//		SqlResult result = param.build(BuildMode.SELECT_FIELDS);
+//		System.out.println(result.getSql());
+//		for(String[] fieldNameList : result.getOutputValCorrespondFieldNames()) {
+//			for(String fieldName : fieldNameList) {
+//				System.out.print(fieldName);
+//				System.out.print(", ");
+//			}
+//			System.out.println();
+//		}
+		
+//		OrderParameter param = SqlParameter.getParameter(OrderParameter.class);
+//		param.customer.userID.setOutput(true);
+//		param.tool.toolID.setOutput(true);
+//		param.tool.name.setOutput(true);
+//		SqlResult result = param.build(BuildMode.SELECT_FIELDS);
+//		System.out.println(result.getSql());
+//		for(String[] fieldNameList : result.getOutputValCorrespondFieldNames()) {
+//			for(String fieldName : fieldNameList) {
+//				System.out.print(fieldName);
+//				System.out.print(", ");
+//			}
+//			System.out.println();
+//		}
 		
 //		OrderParameter param = SqlParameter.getParameter(OrderParameter.class);
 //		param.enableAutoRelation(true);

@@ -74,4 +74,13 @@ public class OrderParameter extends SqlParameter {
 	@FieldMeta(name = "update_date")
 	public ISearchable<Date> updateDate;
 	
+	/**
+	 * 工具
+	 * 
+	 * @author hongweiquan
+	 * @since 4.5.0
+	 */
+	@FieldMeta(name = "tool_id")
+	@JoinParam(mappedBy = "toolID")
+	public ToolParameter tool;
 }

@@ -11,7 +11,7 @@ import java.util.Map;
 import java.util.Set;
 
 import com.fy.sparam.core.AbsParameter;
-import com.fy.sparam.core.AbsParameter.IInitializor;
+import com.fy.sparam.core.AbsParameter.IParameterInitializor;
 import com.fy.sparam.core.AbsSearcher;
 import com.fy.sparam.core.ParameterContext;
 import com.fy.sparam.core.ParameterField;
@@ -32,15 +32,28 @@ import com.fy.sparam.util.StringUtils;
  */
 @SuppressWarnings("unchecked")
 public final class AnnotationInitializor<PT extends AbsParameter<PT, SCT, RT>, SCT, RT> 
-implements IInitializor<PT, SCT, RT> {
+implements IParameterInitializor<PT, SCT, RT> {
 
+	/**
+	 * 在搜索参数字段中缓存的该字段对应的类字段反射实例的Key
+	 * 
+	 * @author linjie
+	 * @since 1.0.2
+	 */
 	public final static String PF_EXTRA_FIELD =  "PF_EXTRA_FIELD";
 	
+	/**
+	 * 字段转换器实例的缓存表的引用
+	 * 
+	 * @author linjie
+	 * @since 1.0.2
+	 */
 	private Map<Class<?>, ITransformable<?>> fieldTransformer;
 	
 	/**
+	 * 构造注解声明的搜索参数初始化处理器的实例
 	 * 
-	 * @param fieldTransformer
+	 * @param fieldTransformer 字段转换器实例的缓存表的引用
 	 * 
 	 * @author linjie
 	 * @since 1.0.2
@@ -50,12 +63,12 @@ implements IInitializor<PT, SCT, RT> {
 	}
 	
 	@Override
-	public Map<Class<?>, ITransformable<?>> getSearcherFieldTransformers() {
+	public Map<Class<?>, ITransformable<?>> onGetSearcherFieldTransformers() {
 		return this.fieldTransformer;
 	}
 
 	@Override
-	public Class<?> getSearcherFieldTypeClass(AbsSearcher<PT, SCT, RT, ?> searcher) {
+	public Class<?> onGetSearcherFieldTypeClass(AbsSearcher<PT, SCT, RT, ?> searcher) {
 		Field searcherField = (Field) searcher.getBelongParameterField().getExtra(PF_EXTRA_FIELD);
 		if(searcherField != null) {
 			Type searcherFieldGenericType = searcherField.getGenericType();
@@ -71,7 +84,7 @@ implements IInitializor<PT, SCT, RT> {
 	 * 		存放当前搜索参数树中已初始化化过的搜索参数字节码容器(可以为null)]
 	 */
 	@Override
-	public void initParameter(PT param, ParameterContext<PT, SCT, RT> paramContext,
+	public void onInitParameter(PT param, ParameterContext<PT, SCT, RT> paramContext,
 			Object...args) throws Exception {
 		// 需要额外参数: 搜索器实现类类字节码
 		if(args == null || args.length != 5) {
@@ -126,8 +139,7 @@ implements IInitializor<PT, SCT, RT> {
 			PT inheritJoinedParam = (PT) superClass.newInstance();
 			paramContext.registerInheritJoinedParameter(param, inheritJoinedParam,
 					inheritMeta.joinType(), inheritMeta.relationType(), inheritFromFieldName, inheritByName,
-					searcherClass, basicParamClass, superClass, param,
-					meetBeforeParamClasses1); 
+					searcherClass, basicParamClass, superClass, param, meetBeforeParamClasses1); 
 			/* 用来设置实例字段的值不是父类, 而是最后的子类 */
 		}
 		// 初始化当前搜索参数中的搜索器或默认搜索参数成员
@@ -138,8 +150,8 @@ implements IInitializor<PT, SCT, RT> {
 			if(tableAlias.isEmpty()) {
 				tableAlias = tableName;
 			}
-			param.setTableName(tableName);
-			param.setTableAlias(tableAlias);
+			param.setQueryName(tableName);
+			param.setQueryAlias(tableAlias);
 		} else {
 			throw new IllegalArgumentException(format("搜索参数%s没有添加@TableMeta注解", paramClass.getName()));
 		}
@@ -226,18 +238,18 @@ implements IInitializor<PT, SCT, RT> {
 	 * @param args 依次是[字段名称, 数据库字段名称, 数据库字段别名]
 	 */
 	@Override
-	public void initParameterField(ParameterField<PT, SCT, RT> paramField, Object... args) throws Exception {
+	public void onInitParameterField(ParameterField<PT, SCT, RT> paramField, Object... args) throws Exception {
 		String fieldName = (String) args[0];
 		String dbFieldName = (String) args[1];
 		String dbFieldAlias = (String) args[2];
 		
 		paramField.setFieldName(fieldName);
-		paramField.setDbFieldName(dbFieldName);
-		paramField.setDbFieldAlias(dbFieldAlias);
+		paramField.setQueryFieldName(dbFieldName);
+		paramField.setQueryFieldAlias(dbFieldAlias);
 	}
 
 	@Override
-	public void initSearcher(AbsSearcher<PT, SCT, RT, ?> searcher, Object... args) throws Exception {
+	public void onInitSearcher(AbsSearcher<PT, SCT, RT, ?> searcher, Object... args) throws Exception {
 	}
 
 	@Override

@@ -1,7 +1,10 @@
 package com.fy.sparam.core;
 
 import java.util.Collection;
+import java.util.UUID;
 
+import com.fy.sparam.core.SearchExpressionsCompiler.CompileResult;
+import com.fy.sparam.core.SearchExpressionsCompiler.SearchExpression;
 import com.fy.sparam.util.StringUtils;
 
 /**
@@ -55,7 +58,7 @@ public final class JoinWorker<PT extends AbsParameter<PT, SCT, RT>, SCT, RT> {
 	 * @author linjie
 	 * @since 1.0.2
 	 */
-	public static enum RelationType {
+	public static enum JoinRelationType {
 		
 		/**
 		 * 关联关系使用等于
@@ -89,6 +92,10 @@ public final class JoinWorker<PT extends AbsParameter<PT, SCT, RT>, SCT, RT> {
 		 */
 		NOT_IN;
 	}
+	private final static String SYMBOL_FROM = "$FROM.";
+	private final static String SYMBOL_TO = "$TO.";
+	
+	final String id;
 	// 是否完成关联操作处理的标志
 	boolean hasJoin;
 	// 关联的核心数据
@@ -97,11 +104,12 @@ public final class JoinWorker<PT extends AbsParameter<PT, SCT, RT>, SCT, RT> {
 	ParameterField<PT, SCT, RT> mappedFromField;
 	ParameterField<PT, SCT, RT> mappedField;
 	JoinType mappedJoinType;
-	RelationType mappedRelationType;
+	JoinRelationType mappedRelationType;
+	String extraQuery;
 	
 	@Override
 	public String toString() {
-		return StringUtils.concat("from ", mappedFromField, " to ", mappedField);
+		return StringUtils.concat("from [", mappedFromField, "] to [", mappedField, "]");
 	}
 	
 	/**
@@ -113,6 +121,7 @@ public final class JoinWorker<PT extends AbsParameter<PT, SCT, RT>, SCT, RT> {
 	 * @param relationType 关联关系类型
 	 * @param fromField 关联起点字段
 	 * @param toField 关联终点字段
+	 * @param extraQuery 可选的连接额外搜索条件语句
 	 * @return 返回生成的关联处理器
 	 * 
 	 * @author linjie
@@ -120,8 +129,9 @@ public final class JoinWorker<PT extends AbsParameter<PT, SCT, RT>, SCT, RT> {
 	 */
 	final static <PT extends AbsParameter<PT, SCT, RT>, SCT, RT> JoinWorker<PT, SCT, RT> build(
 			PT fromParam, PT toParam,
-			JoinType joinType, RelationType relationType,
-			ParameterField<PT, SCT, RT> fromField, ParameterField<PT, SCT, RT> toField) {
+			JoinType joinType, JoinRelationType relationType,
+			ParameterField<PT, SCT, RT> fromField, ParameterField<PT, SCT, RT> toField,
+			String extraQuery) {
 		JoinWorker<PT, SCT, RT> joinWorker = new JoinWorker<PT, SCT, RT>();
 		joinWorker.mappedFromParam = fromParam;
 		joinWorker.mappedParam = toParam;
@@ -129,6 +139,7 @@ public final class JoinWorker<PT extends AbsParameter<PT, SCT, RT>, SCT, RT> {
 		joinWorker.mappedRelationType = relationType;
 		joinWorker.mappedFromField = fromField;
 		joinWorker.mappedField = toField;
+		joinWorker.extraQuery = extraQuery;
 		
 		joinWorker.mappedFromField.isMappedFromField = true;
 		return joinWorker;
@@ -143,19 +154,39 @@ public final class JoinWorker<PT extends AbsParameter<PT, SCT, RT>, SCT, RT> {
 	 * @since 1.0.2
 	 */
 	final void doJoinWork() throws Exception {
-		if(! this.hasJoin) {
-			// 如果跳着调用保证关联链中前面的搜索参数会进行关联
-			JoinWorker<PT, SCT, RT> fromParamJoinWorker = this.mappedFromParam.usingJoinWorker;
-			if(fromParamJoinWorker != null) {
-				fromParamJoinWorker.doJoinWork();
-			}
-			// 设置为已经关联
-			this.hasJoin = true;
-			// 调用实际关联信息添加实现, 一定要是关联终点搜索参数的方法, 这样才能保证搜索内容属于该搜索参数, 方便回滚
-			this.mappedParam.onJoin(this.mappedFromParam,
-					this.mappedJoinType, this.mappedRelationType,
-					this.mappedFromField, this.mappedField);
+		if(this.hasJoin) {
+			return;
 		}
+		// 如果跳着调用保证关联链中前面的搜索参数会进行关联
+		JoinWorker<PT, SCT, RT> fromParamJoinWorker = this.mappedFromParam.usingJoinWorker;
+		if(fromParamJoinWorker != null) {
+			fromParamJoinWorker.doJoinWork();
+		}
+		// 设置为已经关联
+		this.hasJoin = true;
+		// 如果有额外的查询, 进行处理
+		RT extraQuery = null;
+		if(this.extraQuery != null) {
+			// 注册一个临时的搜索上下文, 并切换到该上下文进行搜索条件的设置
+			this.mappedFromParam.paramContext.registerSearchContext(this.id, SearchContext.create());
+			this.mappedFromParam.paramContext.switchUsingSearchContext(this.id);
+			// 对查询内容进行解析
+			CompileResult<PT, SCT, RT> compileResult = SearchExpressionsCompiler
+					.<PT, SCT, RT>compile(this.extraQuery, SYMBOL_FROM, SYMBOL_TO);
+			// 根据查询内容解析结果设置搜索
+			if(this.setExtraQueryInSearch(compileResult)) {
+				extraQuery = this.mappedParam.onJoinExtra();
+			}
+			// 还原搜索上下文
+			this.mappedFromParam.paramContext.removeSearchContext(this.id);
+			this.mappedFromParam.paramContext.switchUsingSearchContext(null);
+		}
+		// 调用实际关联信息添加实现, 一定要是关联终点搜索参数的方法, 这样才能保证搜索内容属于该搜索参数, 方便回滚
+		this.mappedParam.onJoin(this.mappedFromParam,
+				this.mappedJoinType, this.mappedRelationType,
+				this.mappedFromField, this.mappedField,
+				extraQuery);
+		
 	}
 	
 	/**
@@ -221,10 +252,40 @@ public final class JoinWorker<PT extends AbsParameter<PT, SCT, RT>, SCT, RT> {
 	}
 	
 	/**
-	 * 不允许直接new
+	 * 把解析的查询设置到搜索上下文
+	 * 
+	 * @param compileResult 额外查询字符串的解析结果
+	 * @return 是否成功设置, true表示成功, false为失败
+	 * @throws Exception 处理失败则抛出异常
 	 * 
 	 * @author linjie
 	 * @since 1.0.2
 	 */
-	private JoinWorker() {};
+	private boolean setExtraQueryInSearch(CompileResult<PT, SCT, RT> compileResult) throws Exception {
+		if(compileResult == null) {
+			return false;
+		}
+		for(SearchExpression expression : compileResult.getExpressions()) {
+			AbsSearcher<?, ?, ?, ?> searcher = null;
+			if(expression.containsSymbol(SYMBOL_FROM)) {
+				searcher = this.mappedFromParam.paramContext.getParameterObjWithStartParam(
+						this.mappedFromParam, AbsSearcher.class, expression.getSearchFieldPath());
+			} else {
+				searcher = this.mappedParam.paramContext.getParameterObjWithStartParam(
+						this.mappedParam, AbsSearcher.class, expression.getSearchFieldPath());
+			}
+			compileResult.doSearch(searcher, expression);
+		}
+		return true;
+	}
+	
+	/**
+	 * 不允许外部new
+	 * 
+	 * @author linjie
+	 * @since 1.0.2
+	 */
+	private JoinWorker() {
+		this.id = UUID.randomUUID().toString();
+	};
 }

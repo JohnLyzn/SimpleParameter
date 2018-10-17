@@ -11,10 +11,73 @@ import com.fy.sparam.product.SqlParameter.BuildMode;
 import com.fy.sparam.product.SqlParameter.SqlMember;
 import com.fy.sparam.test.StringUtils;
 
+/**
+ * SQL搜索器实现
+ * 
+ * @author linjie
+ *
+ * @param <T> 字段类类型
+ * 
+ * @author linjie
+ * @since 4.5.0
+ */
 public class SqlSearcher<T> extends AbsSearcher<SqlParameter, SqlPiece, SqlResult, T> {
 
+	/**
+	 * 获取字段查询名称, 与当前查询环境相关
+	 * 
+	 * @return 查询属性名称
+	 * 
+	 * @author linjie
+	 * @since 1.0.2
+	 */
+	public static String toQueryFieldName(ISearchable<?> searcher) {
+		return ((SqlSearcher<?>) searcher).toQueryFieldName();
+	}
+	
+	/**
+	 * 获取字段定位名称, 与当前查询环境相关
+	 * 
+	 * @return 查询属性名称
+	 * 
+	 * @author linjie
+	 * @since 1.0.2
+	 */
+	public static String toLocateFieldName(ISearchable<?> searcher) {
+		return ((SqlSearcher<?>) searcher).toLocateFieldName();
+	}
+	
+	/**
+	 * 获取字段查询名称, 与当前查询环境相关
+	 * 
+	 * @return 查询属性名称
+	 * 
+	 * @author linjie
+	 * @since 1.0.2
+	 */
+	public String toQueryFieldName() {
+		return this.getBelongParameter().generateQueryFieldName(this.getSearchParameterField());
+	}
+	
+	/**
+	 * 获取字段定位名称, 与当前查询环境相关
+	 * 
+	 * @return 查询属性名称
+	 * 
+	 * @author linjie
+	 * @since 1.0.2
+	 */
+	public String toLocateFieldName() {
+		List<String> locateFileNames = this.getBelongParameter()
+				.generatePassedLocateFieldNames(this.getSearchParameterField());
+		if(locateFileNames.isEmpty()) {
+			return "";
+		}
+		return locateFileNames.get(locateFileNames.size() - 1);
+	}
+	
 	@Override
-	public void onIn(Collection<T> values) throws Exception {
+	protected void onIn(Collection<T> values) throws Exception {
 		if(values == null) {
 			throw new IllegalArgumentException("搜索内容不能为null.");
 		}
@@ -22,14 +85,14 @@ public class SqlSearcher<T> extends AbsSearcher<SqlParameter, SqlPiece, SqlResul
 			throw new IllegalArgumentException("in搜索集合不能为空.");
 		}
 		SqlPiece sqlPiece = new SqlPiece(
-				StringUtils.concatAsStr(this.getWholeDbFieldName(),
+				StringUtils.concatAsStr(this.toQueryFieldName(),
 						" IN (", this.generatePlaceHolder(values.size()),") "),
 						this.translateEnums(values));
 		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 	}
 
 	@Override
-	public void onNotIn(Collection<T> values) throws Exception {
+	protected void onNotIn(Collection<T> values) throws Exception {
 		if(values == null || values.isEmpty()) {
 			throw new IllegalArgumentException("搜索内容不能为null.");
 		}
@@ -37,7 +100,7 @@ public class SqlSearcher<T> extends AbsSearcher<SqlParameter, SqlPiece, SqlResul
 			throw new IllegalArgumentException("notIn搜索集合不能为空.");
 		}
 		SqlPiece sqlPiece = new SqlPiece(
-				StringUtils.concatAsStr(this.getWholeDbFieldName(),
+				StringUtils.concatAsStr(this.toQueryFieldName(),
 						" NOT IN (", this.generatePlaceHolder(values.size()),") "),
 						this.translateEnums(values));
 		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
@@ -45,129 +108,129 @@ public class SqlSearcher<T> extends AbsSearcher<SqlParameter, SqlPiece, SqlResul
 	}
 
 	@Override
-	public void onEq(T value) throws Exception {
+	protected void onEq(T value) throws Exception {
 		if(value == null) {
 			throw new IllegalArgumentException("搜索内容不能为null.");
 		}
 		SqlPiece sqlPiece = new SqlPiece(
-				StringUtils.concatAsStr(this.getWholeDbFieldName()," = ? "),
+				StringUtils.concatAsStr(this.toQueryFieldName()," = ? "),
 				this.translateEnum(value));
 		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 		
 	}
 
 	@Override
-	public void onNotEq(T value) throws Exception {
+	protected void onNotEq(T value) throws Exception {
 		if(value == null) {
 			throw new IllegalArgumentException("搜索内容不能为null.");
 		}
 		SqlPiece sqlPiece = new SqlPiece(
-				StringUtils.concatAsStr(this.getWholeDbFieldName(), " <> ? "),
+				StringUtils.concatAsStr(this.toQueryFieldName(), " <> ? "),
 				this.translateEnum(value));
 		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 		
 	}
 
 	@Override
-	public void onBetween(T from, T to) throws Exception {
+	protected void onBetween(T from, T to) throws Exception {
 		if(from == null || to == null) {
 			throw new IllegalArgumentException("搜索内容不能为null.");
 		}
 		SqlPiece sqlPiece = new SqlPiece(
-				StringUtils.concatAsStr(this.getWholeDbFieldName()," BETWEEN ? AND ? "),
+				StringUtils.concatAsStr(this.toQueryFieldName()," BETWEEN ? AND ? "),
 				this.translateEnum(from), this.translateEnum(to));
 		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 		
 	}
 
 	@Override
-	public void onLessThan(T value) throws Exception {
+	protected void onLessThan(T value) throws Exception {
 		if(value == null) {
 			throw new IllegalArgumentException("搜索内容不能为null.");
 		}
 		SqlPiece sqlPiece = new SqlPiece(
-				StringUtils.concatAsStr(this.getWholeDbFieldName()," < ? "),
+				StringUtils.concatAsStr(this.toQueryFieldName()," < ? "),
 				this.translateEnum(value));
 		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 		
 	}
 
 	@Override
-	public void onNotLessThan(T value) throws Exception {
+	protected void onNotLessThan(T value) throws Exception {
 		if(value == null) {
 			throw new IllegalArgumentException("搜索内容不能为null.");
 		}
 		SqlPiece sqlPiece = new SqlPiece(
-				StringUtils.concatAsStr(this.getWholeDbFieldName()," >= ? "),
+				StringUtils.concatAsStr(this.toQueryFieldName()," >= ? "),
 				this.translateEnum(value));
 		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 		
 	}
 
 	@Override
-	public void onGreaterThan(T value) throws Exception {
+	protected void onGreaterThan(T value) throws Exception {
 		if(value == null) {
 			throw new IllegalArgumentException("搜索内容不能为null.");
 		}
 		SqlPiece sqlPiece = new SqlPiece(
-				StringUtils.concatAsStr(this.getWholeDbFieldName(), " > ? "),
+				StringUtils.concatAsStr(this.toQueryFieldName(), " > ? "),
 				this.translateEnum(value));
 		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 		
 	}
 
 	@Override
-	public void onNotGreaterThan(T value) throws Exception {
+	protected void onNotGreaterThan(T value) throws Exception {
 		if(value == null) {
 			throw new IllegalArgumentException("搜索内容不能为null.");
 		}
 		SqlPiece sqlPiece = new SqlPiece(
-				StringUtils.concatAsStr(this.getWholeDbFieldName(), " <= ? "),
+				StringUtils.concatAsStr(this.toQueryFieldName(), " <= ? "),
 				this.translateEnum(value));
 		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 		
 	}
 	
 	@Override
-	public void onLike(String value) throws Exception {
+	protected void onLike(String value) throws Exception {
 		if(value == null) {
 			throw new IllegalArgumentException("搜索内容不能为null.");
 		}
 		SqlPiece sqlPiece = new SqlPiece(
-				StringUtils.concatAsStr(this.getWholeDbFieldName(), " LIKE ? "),
+				StringUtils.concatAsStr(this.toQueryFieldName(), " LIKE ? "),
 				value);
 		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 		
 	}
 
 	@Override
-	public void onNotLike(String value) throws Exception {
+	protected void onNotLike(String value) throws Exception {
 		if(value == null) {
 			throw new IllegalArgumentException("搜索内容不能为null.");
 		}
 		SqlPiece sqlPiece = new SqlPiece(
-				StringUtils.concatAsStr(this.getWholeDbFieldName(), " NOT LIKE ? "),
+				StringUtils.concatAsStr(this.toQueryFieldName(), " NOT LIKE ? "),
 				value);
 		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 		
 	}
 	
 	@Override
-	public void onIsNull() throws Exception {
+	protected void onIsNull() throws Exception {
 		SqlPiece sqlPiece = new SqlPiece(
-				StringUtils.concatAsStr(this.getWholeDbFieldName(), " IS NULL "));
+				StringUtils.concatAsStr(this.toQueryFieldName(), " IS NULL "));
 		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 	}
 
 	@Override
-	public void onIsNotNull() throws Exception {
+	protected void onIsNotNull() throws Exception {
 		SqlPiece sqlPiece = new SqlPiece(
-				StringUtils.concatAsStr(this.getWholeDbFieldName(), " IS NOT NULL "));
+				StringUtils.concatAsStr(this.toQueryFieldName(), " IS NOT NULL "));
 		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 	}
 	
 	@Override
-	public void onInChildQuery(SqlParameter childQuery) throws Exception {
+	protected void onInChildQuery(SqlParameter childQuery) throws Exception {
 		if(! (childQuery instanceof SqlParameter)) {
 			throw new IllegalArgumentException("子查询必须是SqlParameter的实例");
 		}
@@ -177,13 +240,13 @@ public class SqlSearcher<T> extends AbsSearcher<SqlParameter, SqlPiece, SqlResul
 			throw new IllegalArgumentException("子查询的sql语句必须指定输出内容");
 		}
 		SqlPiece sqlPiece = new SqlPiece(
-				StringUtils.concatAsStr(this.getWholeDbFieldName(),
+				StringUtils.concatAsStr(this.toQueryFieldName(),
 						" IN (", sql, ") "));
 		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 	}
 
 	@Override
-	public void onNotInChildQuery(SqlParameter childQuery) throws Exception {
+	protected void onNotInChildQuery(SqlParameter childQuery) throws Exception {
 		if(! (childQuery instanceof SqlParameter)) {
 			throw new IllegalArgumentException("子查询必须是SqlParameter的实例");
 		}
@@ -193,121 +256,121 @@ public class SqlSearcher<T> extends AbsSearcher<SqlParameter, SqlPiece, SqlResul
 			throw new IllegalArgumentException("子查询的sql语句必须指定输出内容");
 		}
 		SqlPiece sqlPiece = new SqlPiece(
-				StringUtils.concatAsStr(this.getWholeDbFieldName(),
+				StringUtils.concatAsStr(this.toQueryFieldName(),
 						" NOT IN (", sql,") "));
 		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 	}
 
 	@Override
-	public void onIn(ISearchable<?> searchField) throws Exception {
+	protected void onIn(ISearchable<?> searchField) throws Exception {
 		SqlPiece sqlPiece = new SqlPiece(
-				StringUtils.concatAsStr(this.getWholeDbFieldName(),
-						" IN (", searchField.getWholeDbFieldName(),") "));
+				StringUtils.concatAsStr(this.toQueryFieldName(),
+						" IN (", ((SqlSearcher<?>) searchField).toQueryFieldName(),") "));
 		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 	}
 
 	@Override
-	public void onNotIn(ISearchable<?> searchField) throws Exception {
+	protected void onNotIn(ISearchable<?> searchField) throws Exception {
 		SqlPiece sqlPiece = new SqlPiece(
-				StringUtils.concatAsStr(this.getWholeDbFieldName(),
-						" NOT IN (", searchField.getWholeDbFieldName(),") "));
+				StringUtils.concatAsStr(this.toQueryFieldName(),
+						" NOT IN (", ((SqlSearcher<?>) searchField).toQueryFieldName(),") "));
 		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 		
 	}
 	
 	@Override
-	public void onEq(ISearchable<?> searchField) throws Exception {
+	protected void onEq(ISearchable<?> searchField) throws Exception {
 		SqlPiece sqlPiece = new SqlPiece(
-				StringUtils.concatAsStr(this.getWholeDbFieldName(),
-						" = ", searchField.getWholeDbFieldName(), " "));
+				StringUtils.concatAsStr(this.toQueryFieldName(),
+						" = ", ((SqlSearcher<?>) searchField).toQueryFieldName(), " "));
 		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 		
 	}
 
 	@Override
-	public void onNotEq(ISearchable<?> searchField) throws Exception {
+	protected void onNotEq(ISearchable<?> searchField) throws Exception {
 		SqlPiece sqlPiece = new SqlPiece(
-				StringUtils.concatAsStr(this.getWholeDbFieldName(),
-						" <> ", searchField.getWholeDbFieldName(), " "));
+				StringUtils.concatAsStr(this.toQueryFieldName(),
+						" <> ", ((SqlSearcher<?>) searchField).toQueryFieldName(), " "));
 		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 		
 	}
 
 	@Override
-	public void onBetween(ISearchable<?> from, ISearchable<?> to)
+	protected void onBetween(ISearchable<?> from, ISearchable<?> to)
 			throws Exception {
 		SqlPiece sqlPiece = new SqlPiece(
-				StringUtils.concatAsStr(this.getWholeDbFieldName(),
-						" BETWEEN ", from.getWholeDbFieldName(),
-						" AND ", to.getWholeDbFieldName(), " "));
+				StringUtils.concatAsStr(this.toQueryFieldName(),
+						" BETWEEN ", ((SqlSearcher<?>) from).toQueryFieldName(),
+						" AND ", ((SqlSearcher<?>) to).toQueryFieldName(), " "));
 		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 		
 	}
 	
 	@Override
-	public void onLessThan(ISearchable<?> searchField) throws Exception {
+	protected void onLessThan(ISearchable<?> searchField) throws Exception {
 		SqlPiece sqlPiece = new SqlPiece(
-				StringUtils.concatAsStr(this.getWholeDbFieldName(),
-						" < ", searchField.getWholeDbFieldName(), " "));
+				StringUtils.concatAsStr(this.toQueryFieldName(),
+						" < ", ((SqlSearcher<?>) searchField).toQueryFieldName(), " "));
 		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 	}
 
 	@Override
-	public void onNotLessThan(ISearchable<?> searchField)
+	protected void onNotLessThan(ISearchable<?> searchField)
 			throws Exception {
 		SqlPiece sqlPiece = new SqlPiece(
-				StringUtils.concatAsStr(this.getWholeDbFieldName(),
-						" >= ", searchField.getWholeDbFieldName(), " "));
-		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
-		
-	}
-
-	@Override
-	public void onGreaterThan(ISearchable<?> searchField)
-			throws Exception {
-		SqlPiece sqlPiece = new SqlPiece(
-				StringUtils.concatAsStr(this.getWholeDbFieldName(),
-						" > ", searchField.getWholeDbFieldName(), " "));
+				StringUtils.concatAsStr(this.toQueryFieldName(),
+						" >= ", ((SqlSearcher<?>) searchField).toQueryFieldName(), " "));
 		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 		
 	}
 
 	@Override
-	public void onNotGreaterThan(ISearchable<?> searchField)
+	protected void onGreaterThan(ISearchable<?> searchField)
 			throws Exception {
 		SqlPiece sqlPiece = new SqlPiece(
-				StringUtils.concatAsStr(this.getWholeDbFieldName(),
-						" <= ", searchField.getWholeDbFieldName(), " "));
+				StringUtils.concatAsStr(this.toQueryFieldName(),
+						" > ", ((SqlSearcher<?>) searchField).toQueryFieldName(), " "));
+		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
+		
+	}
+
+	@Override
+	protected void onNotGreaterThan(ISearchable<?> searchField)
+			throws Exception {
+		SqlPiece sqlPiece = new SqlPiece(
+				StringUtils.concatAsStr(this.toQueryFieldName(),
+						" <= ", ((SqlSearcher<?>) searchField).toQueryFieldName(), " "));
 		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 		
 	}
 	
 	@Override
-	public void onLike(ISearchable<?> searchField) throws Exception {
+	protected void onLike(ISearchable<?> searchField) throws Exception {
 		SqlPiece sqlPiece = new SqlPiece(
-				StringUtils.concatAsStr(this.getWholeDbFieldName(),
-						" LIKE ", searchField.getWholeDbFieldName(), " "));
+				StringUtils.concatAsStr(this.toQueryFieldName(),
+						" LIKE ", ((SqlSearcher<?>) searchField).toQueryFieldName(), " "));
 		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 		
 	}
 
 	@Override
-	public void onNotLike(ISearchable<?> searchField) throws Exception {
+	protected void onNotLike(ISearchable<?> searchField) throws Exception {
 		SqlPiece sqlPiece = new SqlPiece(
-				StringUtils.concatAsStr(this.getWholeDbFieldName(), 
-						" NOT LIKE ", searchField.getWholeDbFieldName(), " "));
+				StringUtils.concatAsStr(this.toQueryFieldName(), 
+						" NOT LIKE ", ((SqlSearcher<?>) searchField).toQueryFieldName(), " "));
 		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 		
 	}
 	
 	@Override
-	public void onDelimiterStart(Object... params) throws Exception {
+	protected void onDelimiterStart(Object... params) throws Exception {
 		SqlPiece sqlPiece = new SqlPiece(" ( ");
 		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 	}
 
 	@Override
-	public void onDelimiterEnd(Object... params) throws Exception {
+	protected void onDelimiterEnd(Object... params) throws Exception {
 		SqlPiece sqlPiece = new SqlPiece(" ) ");
 		this.addSearchEntry(SqlMember.WHERE.name(), sqlPiece);
 	}
@@ -326,12 +389,12 @@ public class SqlSearcher<T> extends AbsSearcher<SqlParameter, SqlPiece, SqlResul
 	
 	@Override
 	protected void onMarkGroupBy(int priority) throws Exception {
-		
+		// TODO 目前没有需求
 	}
 	
 	@Override
 	protected void onMarkOrderBy(int priority, boolean isAsc) throws Exception {
-		
+		// TODO 目前没有需求
 	}
 	
 	/**
